@@ -115,10 +115,10 @@ export default function LifeDashboard({ navigation }: any) {
                         <Text style={styles.brandText}>DAILY ADMIN</Text>
                     </View>
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('Settings')}
+                        onPress={() => navigation.navigate('Profile')}
                         style={styles.settingsButton}
                     >
-                        <MaterialCommunityIcons name="dots-horizontal" size={24} color={Colors.dark.textSecondary} />
+                        <MaterialCommunityIcons name="account-circle" size={28} color={Colors.dark.primary} />
                     </TouchableOpacity>
                 </View>
             </BlurView>
@@ -198,9 +198,40 @@ export default function LifeDashboard({ navigation }: any) {
                             </Animated.View>
                         ))
                     ) : (
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No pending tasks. You're all caught up!</Text>
-                        </View>
+                        <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.zeroStateContainer}>
+                            <LinearGradient
+                                colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+                                style={styles.zeroStateCard}
+                            >
+                                <MaterialCommunityIcons name="rocket-launch-outline" size={48} color={Colors.dark.primary} style={{ marginBottom: 16 }} />
+                                <Text style={styles.zeroStateTitle}>Welcome to Daily Admin</Text>
+                                <Text style={styles.zeroStateSubtitle}>Your personal command center for life.</Text>
+
+                                <View style={styles.featureList}>
+                                    <View style={styles.featureRow}>
+                                        <MaterialCommunityIcons name="credit-card-check-outline" size={20} color={Colors.dark.textSecondary} />
+                                        <Text style={styles.featureText}>Track subscriptions & monthly bills</Text>
+                                    </View>
+                                    <View style={styles.featureRow}>
+                                        <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={Colors.dark.textSecondary} />
+                                        <Text style={styles.featureText}>Manage household chores & tasks</Text>
+                                    </View>
+                                    <View style={styles.featureRow}>
+                                        <MaterialCommunityIcons name="pill" size={20} color={Colors.dark.textSecondary} />
+                                        <Text style={styles.featureText}>Monitor daily habits & meds</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.ctaContainer}>
+                                    <Text style={styles.ctaText}>Tap </Text>
+                                    <View style={styles.plusIconSmall}>
+                                        <MaterialCommunityIcons name="plus" size={14} color="#000" />
+                                    </View>
+                                    <Text style={styles.ctaText}> below to get started</Text>
+                                </View>
+                                <MaterialCommunityIcons name="arrow-down" size={24} color={Colors.dark.primary} style={{ marginTop: 8, opacity: 0.8 }} />
+                            </LinearGradient>
+                        </Animated.View>
                     )}
 
                     {/* Completed Section */}
@@ -349,5 +380,68 @@ const styles = StyleSheet.create({
         color: Colors.dark.textSecondary,
         fontSize: 14,
         fontStyle: 'italic',
-    }
+    },
+    // NEW ZERO STATE STYLES
+    zeroStateContainer: {
+        marginTop: 20,
+        paddingHorizontal: 4,
+    },
+    zeroStateCard: {
+        borderRadius: 24,
+        padding: 32,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    zeroStateTitle: {
+        color: Colors.dark.text,
+        fontSize: 22,
+        fontWeight: 'bold',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    zeroStateSubtitle: {
+        color: Colors.dark.textSecondary,
+        fontSize: 15,
+        marginBottom: 32,
+        textAlign: 'center',
+        lineHeight: 22,
+    },
+    featureList: {
+        width: '100%',
+        gap: 16,
+        marginBottom: 32,
+    },
+    featureRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        padding: 12,
+        borderRadius: 12,
+    },
+    featureText: {
+        color: Colors.dark.text,
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    ctaContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    ctaText: {
+        color: Colors.dark.primary,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    plusIconSmall: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: Colors.dark.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginHorizontal: 4,
+    },
 });

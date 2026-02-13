@@ -26,8 +26,11 @@ import { AddCardScreen } from './AddCardScreen';
 import CategoryDetailScreen from './CategoryDetailScreen';
 import CategoriesScreen from './CategoriesScreen';
 
-export { DashboardScreen, AddBillScreen, SplitBillScreen, TimelineScreen, SettingsScreen, LifeDashboard, AddCardScreen, CategoryDetailScreen, CategoriesScreen };
-export const ProfileScreen = () => <ScreenWrapper title="Profile" />;
+import { ProfileScreen } from './ProfileScreen';
+import { ExpenseTrackerScreen } from './ExpenseTrackerScreen';
+
+export { DashboardScreen, AddBillScreen, SplitBillScreen, TimelineScreen, SettingsScreen, LifeDashboard, AddCardScreen, CategoryDetailScreen, CategoriesScreen, ProfileScreen, ExpenseTrackerScreen };
+// export const ProfileScreen = () => <ScreenWrapper title="Profile" />;
 
 const styles = StyleSheet.create({
     container: {
@@ -44,7 +47,7 @@ const styles = StyleSheet.create({
         textShadowRadius: 10,
     },
     subtitle: {
-        color: Colors.dark.gray,
+        color: Colors.dark.textSecondary,
         fontSize: 16,
     }
 });

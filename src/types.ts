@@ -1,5 +1,5 @@
-export type TaskCategory = 'finance' | 'academic' | 'housing' | 'utility' | 'work' | 'medicine' | 'gym' | 'health' | 'other';
-export type TaskType = 'bill' | 'checklist';
+export type TaskCategory = 'finance' | 'academic' | 'housing' | 'utility' | 'work' | 'medicine' | 'gym' | 'health' | 'other' | 'food' | 'transport' | 'shopping' | 'entertainment' | 'dining' | 'personal' | 'travel';
+export type TaskType = 'bill' | 'checklist' | 'expense';
 export type RecurrenceFrequency = 'once' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly';
 export type TaskStatus = 'pending' | 'completed' | 'snoozed' | 'overdue';
 

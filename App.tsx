@@ -10,7 +10,7 @@ import Colors from './src/constants/Colors';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { NotificationService } from './src/services/NotificationService';
-import { LifeDashboard, TimelineScreen, SplitBillScreen, AddBillScreen, ProfileScreen, SettingsScreen, AddCardScreen, CategoryDetailScreen, CategoriesScreen } from './src/screens';
+import { LifeDashboard, TimelineScreen, SplitBillScreen, AddBillScreen, ProfileScreen, SettingsScreen, AddCardScreen, CategoryDetailScreen, CategoriesScreen, ExpenseTrackerScreen } from './src/screens';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -48,7 +48,7 @@ function TabNavigator() {
         tabBarInactiveTintColor: '#64748B', // Slate gray for inactive
         tabBarShowLabel: true,
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '600',
           marginBottom: 6,
           fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto', // native feel
@@ -61,7 +61,7 @@ function TabNavigator() {
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? "home-variant" : "home-variant-outline"} size={26} color={color} />
+            <MaterialCommunityIcons name={focused ? "home-variant" : "home-variant-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -71,12 +71,14 @@ function TabNavigator() {
         options={{
           tabBarLabel: 'Timeline',
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? "clock-time-four" : "clock-time-four-outline"} size={26} color={color} />
+            <MaterialCommunityIcons name={focused ? "clock-time-four" : "clock-time-four-outline"} size={24} color={color} />
           ),
         }}
       />
 
-      {/* Primary Action Button */}
+
+
+      {/* Primary Action Button - Center */}
       <Tab.Screen
         name="Add"
         component={AddBillScreen}
@@ -84,21 +86,21 @@ function TabNavigator() {
           tabBarLabel: () => null,
           tabBarIcon: () => (
             <View style={{
-              width: 52,
-              height: 52,
-              borderRadius: 18, // Squircle
+              width: 56, // Slightly larger for emphasis
+              height: 56,
+              borderRadius: 20,
               backgroundColor: Colors.dark.primary,
               justifyContent: 'center',
               alignItems: 'center',
-              marginTop: -20, // Gentle float
+              marginTop: -24, // Float higher
               shadowColor: Colors.dark.primary,
               shadowOffset: { width: 0, height: 8 },
               shadowOpacity: 0.5,
               shadowRadius: 16,
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.2)'
+              borderWidth: 2,
+              borderColor: 'rgba(255,255,255,0.1)'
             }}>
-              <MaterialCommunityIcons name="plus" size={30} color="#fff" />
+              <MaterialCommunityIcons name="plus" size={32} color="#fff" />
             </View>
           ),
         }}
@@ -111,22 +113,23 @@ function TabNavigator() {
       />
 
       <Tab.Screen
+        name="Expenses"
+        component={ExpenseTrackerScreen}
+        options={{
+          tabBarLabel: 'Expenses',
+          tabBarStyle: { display: 'none' }, // Hide bottom bar for immersive mode
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? "wallet" : "wallet-outline"} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Categories"
         component={CategoriesScreen}
         options={{
           tabBarLabel: 'Categories',
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? "grid" : "grid-large"} size={26} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? "account-circle" : "account-circle-outline"} size={26} color={color} />
+            <MaterialCommunityIcons name={focused ? "grid" : "grid-large"} size={24} color={color} />
           ),
         }}
       />
@@ -167,6 +170,11 @@ export default function App() {
           name="AddCard"
           component={AddCardScreen}
           options={{ presentation: 'modal', headerShown: false }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ presentation: 'card', headerShown: false }}
         />
         <Stack.Screen
           name="Settings"
