@@ -74,10 +74,7 @@ export default function TimelineScreen({ navigation }: any) {
 
         const visibleTasks = timelineTasks.filter(t => {
             const dueDate = new Date(t.dueDate);
-            const isFutureMonth = dueDate > currentMonthEnd;
-            if (t.status === 'completed') return true;
-            if (t.status === 'overdue') return true;
-            return !isFutureMonth;
+            return dueDate <= currentMonthEnd;
         });
 
         const sortedTasks = [...visibleTasks].sort((a, b) => {

@@ -16,11 +16,17 @@ import { SpendingHeatmap } from '../components/SpendingHeatmap';
 
 const { width } = Dimensions.get('window');
 
-export const ExpenseTrackerScreen = ({ navigation }: any) => {
+export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
     const insets = useSafeAreaInsets();
     const [expenses, setExpenses] = useState<LifeTask[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showMonthPicker, setShowMonthPicker] = useState(false);
+
+    useEffect(() => {
+        if (route?.params?.openAddExpense) {
+            setShowAddModal(true);
+        }
+    }, [route?.params?.openAddExpense]);
 
     // Swipeable renderRightActions
     const renderRightActions = (progress: any, dragX: any, expense: LifeTask) => {
@@ -341,16 +347,10 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        onPress={() => setShowAddModal(true)}
-                        style={[styles.headerAdd, { opacity: isCurrentMonth ? 1 : 0.5 }]}
-                        disabled={!isCurrentMonth}
+                        onPress={() => handleExport()}
+                        style={styles.headerInsightBtn}
                     >
-                        <LinearGradient
-                            colors={['#38BDF8', '#0EA5E9']}
-                            style={styles.headerAddGradient}
-                        >
-                            <MaterialCommunityIcons name="plus" size={24} color="#fff" />
-                        </LinearGradient>
+                        <MaterialCommunityIcons name="download" size={20} color={Colors.dark.textSecondary} />
                     </TouchableOpacity>
                 </View>
             </View>

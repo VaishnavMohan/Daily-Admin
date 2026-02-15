@@ -64,23 +64,30 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
             const isFocused = state.index === index;
             const isAddButton = route.name === 'Add';
 
+            const currentRouteName = state.routes[state.index]?.name;
+
             const onPress = () => {
+              if (isAddButton) {
+                if (currentRouteName === 'Expenses') {
+                  navigation.navigate('Expenses', { openAddExpense: Date.now() });
+                } else {
+                  navigation.navigate('AddCard');
+                }
+                return;
+              }
+
               const event = navigation.emit({
                 type: 'tabPress',
                 target: route.key,
                 canPreventDefault: true,
               });
               if (!event.defaultPrevented) {
-                if (isAddButton) {
-                  navigation.navigate('AddCard');
-                } else {
-                  navigation.navigate(route.name);
-                }
+                navigation.navigate(route.name);
               }
             };
 
             if (isAddButton) {
-              const isExpensesActive = state.routes[state.index]?.name === 'Expenses';
+              const isExpensesActive = currentRouteName === 'Expenses';
               return (
                 <TouchableOpacity
                   key={route.key}
@@ -88,14 +95,18 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                   activeOpacity={0.8}
                   style={tabStyles.addButtonWrapper}
                 >
-                  <View style={[tabStyles.addButton, isExpensesActive && { opacity: 0.3 }]}>
+                  <View style={tabStyles.addButton}>
                     <LinearGradient
-                      colors={[Colors.dark.primary, '#0EA5E9']}
+                      colors={isExpensesActive ? ['#10B981', '#059669'] : [Colors.dark.primary, '#0EA5E9']}
                       style={tabStyles.addGradient}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                     >
-                      <MaterialCommunityIcons name="plus" size={28} color="#fff" />
+                      <MaterialCommunityIcons
+                        name={isExpensesActive ? 'cash-plus' : 'plus'}
+                        size={isExpensesActive ? 24 : 28}
+                        color="#fff"
+                      />
                     </LinearGradient>
                   </View>
                 </TouchableOpacity>
@@ -216,24 +227,26 @@ const tabStyles = StyleSheet.create({
   addButtonWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 4,
-    marginTop: -28,
+    marginHorizontal: 8,
+    marginTop: -24,
   },
   addButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(15, 23, 42, 0.6)',
     ...Platform.select({
       web: {
-        boxShadow: '0 8px 24px rgba(56, 189, 248, 0.35)',
+        boxShadow: '0 6px 20px rgba(56, 189, 248, 0.3)',
       },
       default: {
         shadowColor: Colors.dark.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
-        elevation: 12,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.35,
+        shadowRadius: 12,
+        elevation: 10,
       },
     }),
   },
@@ -242,7 +255,7 @@ const tabStyles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 18,
+    borderRadius: 14,
   },
 });
 
@@ -259,12 +272,6 @@ function TabNavigator() {
       <Tab.Screen
         name="Add"
         component={AddBillScreen}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            navigation.navigate('AddCard');
-          },
-        })}
       />
       <Tab.Screen name="Expenses" component={ExpenseTrackerScreen} />
       <Tab.Screen name="Categories" component={CategoriesScreen} />
