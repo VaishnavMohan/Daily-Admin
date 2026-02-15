@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, RefreshControl, Dimensions, TouchableOpacity, Modal, Animated as RNAnimated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, RefreshControl, Dimensions, TouchableOpacity, Modal, Animated as RNAnimated, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,19 +12,23 @@ import { StorageService } from '../services/StorageService';
 import { LifeTask } from '../types';
 import { BentoCard } from '../components/BentoCard';
 import { TaskRow } from '../components/TaskRow';
+import { GlassModal } from '../components/GlassModal';
 import { DailyProgress } from '../components/DailyProgress';
 import WebSwipeable from '../components/WebSwipeable';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { SmartNudgeService } from '../services/SmartNudgeService';
 
 const { width } = Dimensions.get('window');
 
 export default function LifeDashboard({ navigation }: any) {
     const { colors, theme } = useTheme();
-    const { isGuest } = useAuth();
+    const { isGuest, user } = useAuth();
     const [tasks, setTasks] = useState<LifeTask[]>([]);
+    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [filterConstraint, setFilterConstraint] = useState<'all' | 'urgent'>('all');
+    const [showGuardianCard, setShowGuardianCard] = useState(false);
 
     const rowRefs = React.useRef(new Map<string, any>());
     const [modalConfig, setModalConfig] = useState<{
@@ -51,9 +55,46 @@ export default function LifeDashboard({ navigation }: any) {
     );
 
     const loadData = async () => {
-        const data = await StorageService.getTasks();
-        setTasks(data);
+        // 1. Fast Local Load
+        const localTasks = await StorageService.getTasks();
+        setTasks(localTasks);
+        setLoading(false);
+
+        // 2. Background Sync
+        let finalTasks = localTasks;
+        if (!isGuest && user?.id) {
+            await StorageService.syncData(user.id);
+            finalTasks = await StorageService.getTasks();
+            setTasks(finalTasks);
+        }
         setRefreshing(false);
+
+        // Check Smart Nudges with final data
+        if (isGuest) {
+            const shouldShowGuardian = await SmartNudgeService.shouldShowDashboardGuardian(true, finalTasks.length);
+            setShowGuardianCard(shouldShowGuardian);
+
+            const shouldShowFirstVictory = await SmartNudgeService.shouldShowFirstVictory(finalTasks.length);
+            if (shouldShowFirstVictory) {
+                // Trigger First Victory Nudge
+                await SmartNudgeService.markFirstVictoryShown();
+                setModalConfig({
+                    visible: true,
+                    title: "Great Start! 🚀",
+                    message: "You've created your first item. Just a heads up: your data is only saved on this device. Sign up anytime to secure it.",
+                    confirmText: "Secure Now",
+                    cancelText: "Got it",
+                    singleButton: false,
+                    isDanger: false,
+                    onConfirm: () => {
+                        setModalConfig(prev => ({ ...prev, visible: false }));
+                        navigation.navigate('Auth');
+                    }
+                });
+            }
+        } else {
+            setShowGuardianCard(false);
+        }
     };
 
     const handleToggleTask = async (task: LifeTask) => {
@@ -149,6 +190,14 @@ export default function LifeDashboard({ navigation }: any) {
     const insets = useSafeAreaInsets();
     const headerHeight = 60 + insets.top;
 
+    if (loading && tasks.length === 0) {
+        return (
+            <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
+    }
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <LinearGradient
@@ -231,6 +280,35 @@ export default function LifeDashboard({ navigation }: any) {
                 </Animated.View>
 
                 <View style={styles.gridContainer}>
+                    {showGuardianCard && (
+                        <Animated.View entering={FadeInDown.delay(150).duration(600)} style={{ marginBottom: 12 }}>
+                            <BentoCard
+                                title="Data Not Synced"
+                                subtitle="Sign in to backup your tasks"
+                                value="Back Up"
+                                icon="cloud-off-outline"
+                                colSpan={2}
+                                variant="highlight"
+                                onPress={() => {
+                                    setModalConfig({
+                                        visible: true,
+                                        title: "Sync Your Data",
+                                        message: "Don't lose your hard work. Sign up to sync your tasks and expenses to the cloud.",
+                                        confirmText: "Sign Up / Login",
+                                        cancelText: "Dismiss Warning",
+                                        singleButton: false,
+                                        isDanger: false,
+                                        onConfirm: () => {
+                                            setModalConfig(prev => ({ ...prev, visible: false }));
+                                            navigation.navigate('Auth');
+                                        }
+                                    });
+                                }}
+                                style={{ borderColor: 'rgba(239, 68, 68, 0.3)', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}
+                            />
+                        </Animated.View>
+                    )}
+
                     <View style={styles.row}>
                         <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.bentoCardLeft}>
                             <BentoCard
@@ -340,41 +418,63 @@ export default function LifeDashboard({ navigation }: any) {
                             </Animated.View>
                         ))
                     ) : (
-                        <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.zeroStateContainer}>
-                            <LinearGradient
-                                colors={theme === 'dark' ? ['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)'] : ['rgba(0,0,0,0.03)', 'rgba(0,0,0,0.01)']}
-                                style={[styles.zeroStateCard, { borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
-                            >
-                                <View style={[styles.zeroStateIconWrapper, { backgroundColor: `${colors.primary}14`, borderColor: `${colors.primary}25` }]}>
-                                    <MaterialCommunityIcons name="rocket-launch-outline" size={40} color={colors.primary} />
-                                </View>
-                                <Text style={[styles.zeroStateTitle, { color: colors.text }]}>Welcome to Daily Admin</Text>
-                                <Text style={[styles.zeroStateSubtitle, { color: colors.textSecondary }]}>Your personal command center for life.</Text>
+                        <Animated.View entering={FadeInDown.delay(300).duration(500)} style={styles.zeroStateContainer}>
+                            {tasks.length === 0 ? (
+                                <LinearGradient
+                                    colors={theme === 'dark' ? ['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)'] : ['rgba(0,0,0,0.03)', 'rgba(0,0,0,0.01)']}
+                                    style={[styles.zeroStateCard, { borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
+                                >
+                                    <View style={[styles.zeroStateIconWrapper, { backgroundColor: `${colors.primary}14`, borderColor: `${colors.primary}25` }]}>
+                                        <MaterialCommunityIcons name="rocket-launch-outline" size={40} color={colors.primary} />
+                                    </View>
+                                    <Text style={[styles.zeroStateTitle, { color: colors.text }]}>Welcome to Daily Admin</Text>
+                                    <Text style={[styles.zeroStateSubtitle, { color: colors.textSecondary }]}>Your personal command center for life.</Text>
 
-                                <View style={styles.featureList}>
-                                    <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
-                                        <MaterialCommunityIcons name="credit-card-check-outline" size={20} color={colors.textSecondary} />
-                                        <Text style={[styles.featureText, { color: colors.text }]}>Track subscriptions & monthly bills</Text>
+                                    <View style={styles.featureList}>
+                                        <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                                            <MaterialCommunityIcons name="credit-card-check-outline" size={20} color={colors.textSecondary} />
+                                            <Text style={[styles.featureText, { color: colors.text }]}>Track subscriptions & monthly bills</Text>
+                                        </View>
+                                        <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                                            <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={colors.textSecondary} />
+                                            <Text style={[styles.featureText, { color: colors.text }]}>Manage household chores & tasks</Text>
+                                        </View>
+                                        <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                                            <MaterialCommunityIcons name="pill" size={20} color={colors.textSecondary} />
+                                            <Text style={[styles.featureText, { color: colors.text }]}>Monitor daily habits & meds</Text>
+                                        </View>
                                     </View>
-                                    <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
-                                        <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={colors.textSecondary} />
-                                        <Text style={[styles.featureText, { color: colors.text }]}>Manage household chores & tasks</Text>
-                                    </View>
-                                    <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
-                                        <MaterialCommunityIcons name="pill" size={20} color={colors.textSecondary} />
-                                        <Text style={[styles.featureText, { color: colors.text }]}>Monitor daily habits & meds</Text>
-                                    </View>
-                                </View>
 
-                                <View style={styles.ctaContainer}>
-                                    <Text style={[styles.ctaText, { color: colors.primary }]}>Tap </Text>
-                                    <View style={[styles.plusIconSmall, { backgroundColor: colors.primary }]}>
-                                        <MaterialCommunityIcons name="plus" size={14} color="#fff" />
+                                    <View style={styles.ctaContainer}>
+                                        <Text style={[styles.ctaText, { color: colors.primary }]}>Tap </Text>
+                                        <View style={[styles.plusIconSmall, { backgroundColor: colors.primary }]}>
+                                            <MaterialCommunityIcons name="plus" size={14} color="#fff" />
+                                        </View>
+                                        <Text style={[styles.ctaText, { color: colors.primary }]}> below to get started</Text>
                                     </View>
-                                    <Text style={[styles.ctaText, { color: colors.primary }]}> below to get started</Text>
+                                    <MaterialCommunityIcons name="arrow-down" size={24} color={colors.primary} style={styles.ctaArrow} />
+                                </LinearGradient>
+                            ) : (
+                                <View style={{ alignItems: 'center', padding: 40, opacity: 0.7 }}>
+                                    <View style={{
+                                        width: 80, height: 80, borderRadius: 40,
+                                        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                                        justifyContent: 'center', alignItems: 'center', marginBottom: 16
+                                    }}>
+                                        <MaterialCommunityIcons
+                                            name={filterConstraint === 'urgent' ? "check-decagram-outline" : "coffee-outline"}
+                                            size={40}
+                                            color={colors.textSecondary}
+                                        />
+                                    </View>
+                                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '600', marginBottom: 4 }}>
+                                        {filterConstraint === 'urgent' ? "No Urgent Tasks" : "All Caught Up"}
+                                    </Text>
+                                    <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
+                                        {filterConstraint === 'urgent' ? "You're on top of everything!" : "Enjoy your free time."}
+                                    </Text>
                                 </View>
-                                <MaterialCommunityIcons name="arrow-down" size={24} color={colors.primary} style={styles.ctaArrow} />
-                            </LinearGradient>
+                            )}
                         </Animated.View>
                     )}
 
@@ -405,62 +505,22 @@ export default function LifeDashboard({ navigation }: any) {
                 <View style={styles.bottomSpacer} />
             </ScrollView>
 
-            {modalConfig.visible && (
-                <View style={styles.modalOverlay}>
-                    <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-                    <TouchableOpacity
-                        activeOpacity={1}
-                        style={styles.modalBackdrop}
-                        onPress={() => setModalConfig(prev => ({ ...prev, visible: false }))}
-                    >
-                        <TouchableOpacity
-                            activeOpacity={1}
-                            onPress={(e) => e.stopPropagation()}
-                        >
-                            <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}>
-                                <View style={styles.modalHeaderSection}>
-                                    {modalConfig.isDanger ? (
-                                        <View style={styles.modalIconDanger}>
-                                            <MaterialCommunityIcons name="delete-outline" size={30} color="#EF4444" />
-                                        </View>
-                                    ) : (
-                                        <View style={styles.modalIconInfo}>
-                                            <MaterialCommunityIcons name="information-variant" size={30} color={colors.primary} />
-                                        </View>
-                                    )}
-                                    <Text style={[styles.modalTitle, { color: colors.text }]}>{modalConfig.title}</Text>
-                                    <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
-                                        {modalConfig.message}
-                                    </Text>
-                                </View>
-
-                                <View style={styles.modalButtonRow}>
-                                    {!modalConfig.singleButton && (
-                                        <TouchableOpacity
-                                            style={styles.modalCancelButton}
-                                            onPress={() => setModalConfig(prev => ({ ...prev, visible: false }))}
-                                        >
-                                            <Text style={styles.modalCancelText}>{modalConfig.cancelText || 'Cancel'}</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.modalConfirmButton,
-                                            modalConfig.isDanger ? styles.modalConfirmDanger : styles.modalConfirmPrimary
-                                        ]}
-                                        onPress={() => {
-                                            if (modalConfig.onConfirm) modalConfig.onConfirm();
-                                            else setModalConfig(prev => ({ ...prev, visible: false }));
-                                        }}
-                                    >
-                                        <Text style={styles.modalConfirmText}>{modalConfig.confirmText || 'OK'}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </TouchableOpacity>
-                    </TouchableOpacity>
-                </View>
-            )}
+            {/* Modal */}
+            <GlassModal
+                visible={modalConfig.visible}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                confirmText={modalConfig.confirmText}
+                cancelText={modalConfig.cancelText}
+                onConfirm={() => {
+                    if (modalConfig.onConfirm) modalConfig.onConfirm();
+                    else setModalConfig(prev => ({ ...prev, visible: false }));
+                }}
+                onCancel={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                isDanger={modalConfig.isDanger}
+                singleButton={modalConfig.singleButton}
+                icon={modalConfig.isDanger ? "delete-outline" : "information-variant"}
+            />
         </View>
     );
 }

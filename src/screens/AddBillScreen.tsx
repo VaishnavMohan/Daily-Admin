@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import Colors from '../constants/Colors';
 import { NeonTextInput } from '../components/NeonTextInput';
 import { Button } from '../components/Button';
 import { StorageService } from '../services/StorageService';
+import { GlassModal } from '../components/GlassModal';
 
 export const AddBillScreen = ({ navigation }: any) => {
     const insets = useSafeAreaInsets();
@@ -14,12 +15,30 @@ export const AddBillScreen = ({ navigation }: any) => {
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState('');
     const [category, setCategory] = useState('Subscription');
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        confirmText?: string;
+        cancelText?: string;
+        onConfirm?: () => void;
+        isDanger?: boolean;
+        singleButton?: boolean;
+    }>({ visible: false, title: '', message: '' });
 
     const categories = ['Subscription', 'Credit Card', 'Rent', 'Utility', 'Insurance'];
 
     const handleSave = async () => {
         if (!name || !amount || !date) {
-            Alert.alert('Missing Fields', 'Please fill all details.');
+            setModalConfig({
+                visible: true,
+                title: "Missing Fields",
+                message: "Please fill in all details to create a reminder.",
+                confirmText: "OK",
+                singleButton: true,
+                isDanger: false,
+                onConfirm: () => setModalConfig(prev => ({ ...prev, visible: false }))
+            });
             return;
         }
 
@@ -36,9 +55,17 @@ export const AddBillScreen = ({ navigation }: any) => {
 
         await StorageService.addBill(newBill as any);
 
-        Alert.alert('Success', 'Reminder Added!', [
-            { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
+        setModalConfig({
+            visible: true,
+            title: "Success",
+            message: "Reminder added successfully!",
+            confirmText: "Great",
+            singleButton: true,
+            onConfirm: () => {
+                setModalConfig(prev => ({ ...prev, visible: false }));
+                navigation.goBack();
+            }
+        });
     };
 
     return (
@@ -57,63 +84,89 @@ export const AddBillScreen = ({ navigation }: any) => {
                     <View style={{ width: 40 }} />
                 </View>
 
-                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                    <NeonTextInput
-                        label="What is this for?"
-                        placeholder="e.g. Netflix, HDFC Card"
-                        value={name}
-                        onChangeText={setName}
-                    />
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+                >
+                    <ScrollView
+                        style={{ flex: 1 }}
+                        contentContainerStyle={styles.content}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="always"
+                    >
+                        <NeonTextInput
+                            label="What is this for?"
+                            placeholder="e.g. Netflix, HDFC Card"
+                            value={name}
+                            onChangeText={setName}
+                        />
 
-                    <NeonTextInput
-                        label="Amount (₹)"
-                        placeholder="0.00"
-                        keyboardType="numeric"
-                        value={amount}
-                        onChangeText={setAmount}
-                    />
+                        <NeonTextInput
+                            label="Amount (₹)"
+                            placeholder="0.00"
+                            keyboardType="numeric"
+                            value={amount}
+                            onChangeText={setAmount}
+                        />
 
-                    <NeonTextInput
-                        label="Due Date"
-                        placeholder="DD/MM/YYYY"
-                        value={date}
-                        onChangeText={setDate}
-                    />
+                        <NeonTextInput
+                            label="Due Date"
+                            placeholder="DD/MM/YYYY"
+                            value={date}
+                            onChangeText={setDate}
+                        />
 
-                    <Text style={styles.label}>Category</Text>
-                    <View style={styles.categoryContainer}>
-                        {categories.map((cat) => {
-                            const isActive = category === cat;
-                            return (
-                                <TouchableOpacity
-                                    key={cat}
-                                    style={[styles.chip, isActive && styles.chipActive]}
-                                    onPress={() => setCategory(cat)}
-                                    activeOpacity={0.7}
-                                >
-                                    {isActive && (
-                                        <LinearGradient
-                                            colors={['rgba(56, 189, 248, 0.18)', 'rgba(56, 189, 248, 0.05)']}
-                                            style={StyleSheet.absoluteFill}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 1 }}
-                                        />
-                                    )}
-                                    <Text style={[
-                                        styles.chipText,
-                                        isActive && styles.chipTextActive
-                                    ]}>{cat}</Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
+                        <Text style={styles.label}>Category</Text>
+                        <View style={styles.categoryContainer}>
+                            {categories.map((cat) => {
+                                const isActive = category === cat;
+                                return (
+                                    <TouchableOpacity
+                                        key={cat}
+                                        style={[styles.chip, isActive && styles.chipActive]}
+                                        onPress={() => setCategory(cat)}
+                                        activeOpacity={0.7}
+                                    >
+                                        {isActive && (
+                                            <LinearGradient
+                                                colors={['rgba(56, 189, 248, 0.18)', 'rgba(56, 189, 248, 0.05)']}
+                                                style={StyleSheet.absoluteFill}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 1 }}
+                                            />
+                                        )}
+                                        <Text style={[
+                                            styles.chipText,
+                                            isActive && styles.chipTextActive
+                                        ]}>{cat}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
 
-                    <View style={{ marginTop: 40 }}>
-                        <Button label="Save Reminder" onPress={handleSave} />
-                    </View>
+                        <View style={{ marginTop: 40 }}>
+                            <Button label="Save Reminder" onPress={handleSave} />
+                        </View>
 
-                </ScrollView>
+                    </ScrollView>
+                </KeyboardAvoidingView>
             </View>
+
+            <GlassModal
+                visible={modalConfig.visible}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                confirmText={modalConfig.confirmText}
+                cancelText={modalConfig.cancelText}
+                onConfirm={() => {
+                    if (modalConfig.onConfirm) modalConfig.onConfirm();
+                    else setModalConfig(prev => ({ ...prev, visible: false }));
+                }}
+                onCancel={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                isDanger={modalConfig.isDanger}
+                singleButton={modalConfig.singleButton}
+            />
         </View>
     );
 };

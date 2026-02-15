@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import Colors from '../constants/Colors';
 import { FadeInDown } from 'react-native-reanimated';
 import Animated from 'react-native-reanimated';
 import { useTheme } from '../context/ThemeContext';
+import { GlassModal } from '../components/GlassModal';
 
 const MENU_COLORS = {
     'bell-ring-outline': '#38BDF8',
@@ -22,6 +23,17 @@ export const ProfileScreen = ({ navigation }: any) => {
     const insets = useSafeAreaInsets();
     const { colors, theme } = useTheme();
     const { user, signOut, isGuest } = useAuth();
+
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        confirmText?: string;
+        cancelText?: string;
+        onConfirm?: () => void;
+        isDanger?: boolean;
+        singleButton?: boolean;
+    }>({ visible: false, title: '', message: '' });
 
     const MenuOption = ({ icon, label, subtitle, onPress }: any) => {
         const tint = (MENU_COLORS as any)[icon] || colors.primary;
@@ -49,28 +61,47 @@ export const ProfileScreen = ({ navigation }: any) => {
         );
     };
 
+    const getDisplayName = () => {
+        if (isGuest) return 'Guest User';
+
+        const metaName = user?.user_metadata?.full_name;
+        if (metaName && metaName !== 'User' && metaName.trim() !== '') return metaName;
+
+        if (user?.email) {
+            const namePart = user.email.split('@')[0];
+            const cleanName = namePart.replace(/[0-9]+$/, '');
+            return cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+        }
+        return 'Life Admin User';
+    };
+
     const handleHelp = () => {
-        Alert.alert(
-            "How to use Daily Admin",
-            "1. Dashboard: See urgent tasks & daily progress.\n2. Timeline: View tasks by date.\n3. Categories: Manage specific areas of life.\n4. Add (+): Create new bills, chores, or habits."
-        );
+        setModalConfig({
+            visible: true,
+            title: "How to Use",
+            message: "Here's a quick guide to getting the most out of Daily Admin.",
+            confirmText: "Got it",
+            singleButton: true,
+            onConfirm: () => setModalConfig(prev => ({ ...prev, visible: false }))
+        });
     };
 
     const handleLogout = () => {
-        Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-            { text: "Cancel", style: "cancel" },
-            {
-                text: "Sign Out",
-                style: "destructive",
-                onPress: async () => {
-                    await signOut();
-                }
+        setModalConfig({
+            visible: true,
+            title: "Sign Out",
+            message: "Are you sure you want to sign out?",
+            confirmText: "Sign Out",
+            cancelText: "Cancel",
+            isDanger: true,
+            onConfirm: async () => {
+                setModalConfig(prev => ({ ...prev, visible: false }));
+                await signOut();
             }
-        ]);
+        });
     };
 
     const handleLogin = () => {
-        // Navigate to the Auth stack which is now a fullScreenModal in the main stack
         navigation.navigate('Auth');
     };
 
@@ -100,7 +131,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                         </View>
                         <View>
                             <Text style={[styles.userName, { color: colors.text }]}>
-                                {isGuest ? 'Guest User' : (user?.user_metadata?.full_name || 'User')}
+                                {getDisplayName()}
                             </Text>
                             <TouchableOpacity onPress={isGuest ? handleLogin : () => { }}>
                                 <Text style={[styles.userStatus, { color: isGuest ? colors.primary : colors.textSecondary }]}>
@@ -168,7 +199,14 @@ export const ProfileScreen = ({ navigation }: any) => {
                                 icon="database-export-outline"
                                 label="Export Data"
                                 subtitle="Download your tasks"
-                                onPress={() => Alert.alert("Coming Soon", "Data export will be available in the next update.")}
+                                onPress={() => setModalConfig({
+                                    visible: true,
+                                    title: "Coming Soon",
+                                    message: "Data export will be available in the next update.",
+                                    confirmText: "OK",
+                                    singleButton: true,
+                                    onConfirm: () => setModalConfig(prev => ({ ...prev, visible: false }))
+                                })}
                             />
                         </LinearGradient>
                     </Animated.View>
@@ -189,6 +227,44 @@ export const ProfileScreen = ({ navigation }: any) => {
 
                 </ScrollView>
             </View>
+
+            {/* Reusable Glass Modal */}
+            <GlassModal
+                visible={modalConfig.visible}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                confirmText={modalConfig.confirmText}
+                cancelText={modalConfig.cancelText}
+                onConfirm={() => {
+                    if (modalConfig.onConfirm) modalConfig.onConfirm();
+                    else setModalConfig(prev => ({ ...prev, visible: false }));
+                }}
+                onCancel={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                isDanger={modalConfig.isDanger}
+                singleButton={modalConfig.singleButton}
+                icon={modalConfig.title === "How to Use" ? "help-circle-outline" : undefined}
+            >
+                {modalConfig.title === "How to Use" && (
+                    <View style={{ marginTop: 16 }}>
+                        <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                            <MaterialCommunityIcons name="plus-box-outline" size={20} color={colors.primary} />
+                            <Text style={[styles.featureText, { color: colors.text }]}>Tap + to add tasks or bills</Text>
+                        </View>
+                        <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                            <MaterialCommunityIcons name="gesture-swipe-right" size={20} color={colors.primary} />
+                            <Text style={[styles.featureText, { color: colors.text }]}>Swipe right to complete</Text>
+                        </View>
+                        <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                            <MaterialCommunityIcons name="gesture-swipe-left" size={20} color="#EF4444" />
+                            <Text style={[styles.featureText, { color: colors.text }]}>Swipe left to delete</Text>
+                        </View>
+                        <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                            <MaterialCommunityIcons name="filter-variant" size={20} color={colors.textSecondary} />
+                            <Text style={[styles.featureText, { color: colors.text }]}>Use filters to focus on what matters</Text>
+                        </View>
+                    </View>
+                )}
+            </GlassModal>
         </View>
     );
 };
@@ -307,6 +383,19 @@ const styles = StyleSheet.create({
     footerVersion: {
         fontSize: 12,
         marginTop: 4,
+        fontWeight: '500',
+    },
+    featureRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 8,
+        borderWidth: 1,
+        gap: 12,
+    },
+    featureText: {
+        fontSize: 14,
         fontWeight: '500',
     },
 });

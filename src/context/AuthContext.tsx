@@ -24,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StorageService } from '../services/StorageService';
 
 // ... other imports ...
 
@@ -40,11 +41,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (session) {
                 setSession(session);
                 setIsGuest(false);
+                // Trigger Sync on Login/App Open
+                StorageService.syncData(session.user.id);
             } else {
-                // If no session, check if we've already set guest mode, or default to it?
-                // Plan: Default to Guest Mode immediately for new installs.
-                // We can check if "hasLaunched" exists to know if it's first launch, but 
-                // for "Guest First", we just treat no-session as Guest.
                 setIsGuest(true);
             }
             setIsLoading(false);
@@ -56,8 +55,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(session);
             if (session) {
                 setIsGuest(false);
+                // Trigger Sync on Auth Change (Login)
+                StorageService.syncData(session.user.id);
             } else {
-                // If session expires or signs out, go back to Guest
                 setIsGuest(true);
             }
             setIsLoading(false);
@@ -73,9 +73,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const signOut = async () => {
-        await supabase.auth.signOut();
-        setSession(null);
-        setIsGuest(true); // Explicitly go to guest mode
+        try {
+            // Secure Sign Out: Clear Data First
+            await StorageService.clearAllData();
+
+            // Optimistic update for instant UI feedback
+            setSession(null);
+            setIsGuest(true);
+            await AsyncStorage.setItem('guest_mode_active', 'true');
+
+            // Perform actual sign out in background
+            await supabase.auth.signOut();
+        } catch (error) {
+            console.error("Error signing out:", error);
+        }
     };
 
     const value = {

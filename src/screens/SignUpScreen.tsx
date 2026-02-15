@@ -61,7 +61,7 @@ export const SignUpScreen = ({ navigation }: any) => {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 40 }]}>
+                <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 40 }]} keyboardShouldPersistTaps="handled">
 
                     <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                         <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.dark.text} />

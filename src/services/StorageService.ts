@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LifeTask, User, AppSettings, ExpenseBudget, TaskCategory } from '../types';
+import { LifeTask, User, AppSettings, ExpenseBudget } from '../types';
 import { MOCK_TASKS, MOCK_USER } from '../constants/MockData';
+import { SyncService } from './SyncService';
 
 const TASKS_KEY = '@life_admin_tasks';
 const USER_KEY = '@life_admin_user';
@@ -198,6 +199,36 @@ export const StorageService = {
             await AsyncStorage.setItem(BUDGETS_KEY, JSON.stringify(budgets));
         } catch (error) {
             console.error('Error saving budgets:', error);
+        }
+    },
+
+    // --- SYNC ---
+    async syncData(userId: string) {
+        if (!userId) return;
+        try {
+            console.log('StorageService: Starting sync for user', userId);
+            const localTasks = await this.getTasks();
+
+            // Perform bi-directional sync (Push Local -> Pull Cloud)
+            const syncedTasks = await SyncService.syncInitial(userId, localTasks);
+
+            if (syncedTasks && syncedTasks.length > 0) {
+                await this.saveTasks(syncedTasks);
+                console.log('StorageService: Sync complete. Tasks updated.');
+            }
+        } catch (error) {
+            console.error('StorageService: Sync failed', error);
+        }
+    },
+
+    // --- TESTING UTILS ---
+    async clearAllData() {
+        try {
+            const keys = [TASKS_KEY, USER_KEY, SETTINGS_KEY, BUDGETS_KEY, 'guest_mode_active', '@life_admin_nudges'];
+            await AsyncStorage.multiRemove(keys);
+            console.log('All data cleared');
+        } catch (e) {
+            console.error('Failed to clear data', e);
         }
     }
 };

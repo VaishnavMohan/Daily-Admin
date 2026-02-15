@@ -53,7 +53,7 @@ export const LoginScreen = ({ navigation }: any) => {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 40 }]}>
+                <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 40 }]} keyboardShouldPersistTaps="handled">
 
                     <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.logoContainer}>
                         <View style={styles.iconCircle}>
