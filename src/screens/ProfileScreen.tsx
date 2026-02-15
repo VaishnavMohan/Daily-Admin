@@ -16,9 +16,12 @@ const MENU_COLORS = {
     'database-export-outline': '#FB923C',
 };
 
+import { useAuth } from '../context/AuthContext';
+
 export const ProfileScreen = ({ navigation }: any) => {
     const insets = useSafeAreaInsets();
     const { colors, theme } = useTheme();
+    const { user, signOut, isGuest } = useAuth();
 
     const MenuOption = ({ icon, label, subtitle, onPress }: any) => {
         const tint = (MENU_COLORS as any)[icon] || colors.primary;
@@ -53,6 +56,24 @@ export const ProfileScreen = ({ navigation }: any) => {
         );
     };
 
+    const handleLogout = () => {
+        Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Sign Out",
+                style: "destructive",
+                onPress: async () => {
+                    await signOut();
+                }
+            }
+        ]);
+    };
+
+    const handleLogin = () => {
+        // Navigate to the Auth stack which is now a fullScreenModal in the main stack
+        navigation.navigate('Auth');
+    };
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <LinearGradient
@@ -70,13 +91,28 @@ export const ProfileScreen = ({ navigation }: any) => {
                                 end={{ x: 1, y: 1 }}
                             />
                             <View style={[styles.avatarInner, { backgroundColor: colors.backgroundSecondary }]}>
-                                <MaterialCommunityIcons name="account" size={36} color={theme === 'dark' ? '#fff' : colors.primary} />
+                                {isGuest ? (
+                                    <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.primary }}>G</Text>
+                                ) : (
+                                    <MaterialCommunityIcons name="account" size={36} color={theme === 'dark' ? '#fff' : colors.primary} />
+                                )}
                             </View>
                         </View>
                         <View>
-                            <Text style={[styles.userName, { color: colors.text }]}>User</Text>
-                            <Text style={[styles.userStatus, { color: colors.textSecondary }]}>Life Admin Manager</Text>
+                            <Text style={[styles.userName, { color: colors.text }]}>
+                                {isGuest ? 'Guest User' : (user?.user_metadata?.full_name || 'User')}
+                            </Text>
+                            <TouchableOpacity onPress={isGuest ? handleLogin : () => { }}>
+                                <Text style={[styles.userStatus, { color: isGuest ? colors.primary : colors.textSecondary }]}>
+                                    {isGuest ? 'Tap to Sign In' : (user?.email || 'Life Admin Manager')}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
+                        {!isGuest && (
+                            <TouchableOpacity style={{ marginLeft: 'auto', padding: 8 }} onPress={handleLogout}>
+                                <MaterialCommunityIcons name="logout" size={24} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                        )}
                     </Animated.View>
 
                     <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.section}>
@@ -93,12 +129,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                                 subtitle="Manage alerts & frequency"
                                 onPress={() => navigation.navigate('Settings')}
                             />
-                            <MenuOption
-                                icon="palette-outline"
-                                label="Appearance"
-                                subtitle={theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
-                                onPress={() => navigation.navigate('Settings')}
-                            />
+
                         </LinearGradient>
                     </Animated.View>
 

@@ -27,10 +27,13 @@ import CategoryDetailScreen from './CategoryDetailScreen';
 import CategoriesScreen from './CategoriesScreen';
 
 import { ProfileScreen } from './ProfileScreen';
+import { LoginScreen } from './LoginScreen';
+import { SignUpScreen } from './SignUpScreen';
 import { ExpenseTrackerScreen } from './ExpenseTrackerScreen';
 
-export { DashboardScreen, AddBillScreen, SplitBillScreen, TimelineScreen, SettingsScreen, LifeDashboard, AddCardScreen, CategoryDetailScreen, CategoriesScreen, ProfileScreen, ExpenseTrackerScreen };
 // export const ProfileScreen = () => <ScreenWrapper title="Profile" />;
+
+export { DashboardScreen, AddBillScreen, SplitBillScreen, TimelineScreen, SettingsScreen, LifeDashboard, AddCardScreen, CategoryDetailScreen, CategoriesScreen, ProfileScreen, ExpenseTrackerScreen, LoginScreen, SignUpScreen };
 
 const styles = StyleSheet.create({
     container: {

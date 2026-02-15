@@ -24,20 +24,18 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [theme, setTheme] = useState<ThemeMode>('dark');
 
   useEffect(() => {
-    AsyncStorage.getItem(THEME_KEY).then((saved) => {
-      if (saved === 'light' || saved === 'dark') {
-        setTheme(saved);
-      }
-    });
+    // Enforce dark mode
+    setTheme('dark');
+    AsyncStorage.setItem(THEME_KEY, 'dark');
   }, []);
 
   const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    AsyncStorage.setItem(THEME_KEY, next);
+    // Prevent switching to light mode
+    setTheme('dark');
+    AsyncStorage.setItem(THEME_KEY, 'dark');
   };
 
-  const colors = theme === 'dark' ? Colors.dark : Colors.light;
+  const colors = Colors.dark;
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, colors }}>

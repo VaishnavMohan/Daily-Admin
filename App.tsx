@@ -11,8 +11,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { NotificationService } from './src/services/NotificationService';
-import { LifeDashboard, TimelineScreen, SplitBillScreen, AddBillScreen, ProfileScreen, SettingsScreen, AddCardScreen, CategoryDetailScreen, CategoriesScreen, ExpenseTrackerScreen } from './src/screens';
+import { LifeDashboard, TimelineScreen, SplitBillScreen, AddBillScreen, ProfileScreen, SettingsScreen, AddCardScreen, CategoryDetailScreen, CategoriesScreen, ExpenseTrackerScreen, LoginScreen, SignUpScreen } from './src/screens';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { useState } from 'react';
+import { supabase } from './src/services/SupabaseClient';
+import { Session } from '@supabase/supabase-js';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -168,7 +172,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                   <RNAnimated.View style={[tabStyles.activeIndicator, { opacity: indicatorOpacity, backgroundColor: colors.primary }]} />
                   <RNAnimated.Text style={{ color: animatedColor }}>
                     <MaterialCommunityIcons
-                      name={isFocused ? iconConfig.active : iconConfig.inactive}
+                      name={(isFocused ? iconConfig.active : iconConfig.inactive) as any}
                       size={22}
                       color={isFocused ? activeColor : inactiveColor}
                     />
@@ -291,8 +295,20 @@ function TabNavigator() {
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+const AuthStack = createNativeStackNavigator();
+
+function AuthNavigator() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="SignUp" component={SignUpScreen} />
+    </AuthStack.Navigator>
+  );
+}
+
 function AppContent() {
   const { colors, theme } = useTheme();
+  const { session, isLoading, isGuest } = useAuth();
 
   useEffect(() => {
     NotificationService.registerForPushNotificationsAsync();
@@ -312,11 +328,22 @@ function AppContent() {
     }
   };
 
+  if (isLoading) {
+    return <View style={{ flex: 1, backgroundColor: '#0F172A' }} />;
+  }
+
   return (
     <NavigationContainer theme={navTheme}>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Root" component={TabNavigator} />
+        {/* ... other screens ... */}
+        <Stack.Screen
+          name="Auth"
+          component={AuthNavigator}
+          options={{ presentation: 'fullScreenModal' }}
+        />
+        {/* ... keep existing modals ... */}
         <Stack.Screen
           name="AddBillModal"
           component={AddBillScreen}
@@ -358,9 +385,11 @@ function AppContent() {
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </AuthProvider>
     </GestureHandlerRootView>
   );
 }

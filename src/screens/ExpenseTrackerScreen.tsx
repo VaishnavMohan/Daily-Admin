@@ -107,7 +107,7 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
     // Auto-scroll to today when date strip loads/changes
     useEffect(() => {
         if (dateListRef.current && dateStrip.length > 0) {
-            const fmt = (dt: Date) => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+            const fmt = (dt: Date) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
             const todayIndex = dateStrip.findIndex(d =>
                 fmt(d) === fmt(selectedDate)
             );
@@ -589,7 +589,7 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                         }}
                         keyExtractor={(item) => item.toISOString()}
                         renderItem={({ item: date }) => {
-                            const toLocalStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                            const toLocalStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                             const dStr = toLocalStr(date);
                             const selectedStr = toLocalStr(selectedDate);
                             const isSelected = dStr === selectedStr;
@@ -723,7 +723,7 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                         </View>
                     )}
 
-                    <View style={[styles.dayDetails, { minHeight: 500, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }]}>
+                    <View style={[styles.dayDetails, { minHeight: 300, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }]}>
                         <View style={styles.dayHeader}>
                             <Text style={[styles.dayHeaderTitle, { color: colors.text }]}>
                                 {selectedDateStr === formatLocalDate(new Date()) ? 'Today' : selectedDate.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric' })}
@@ -1191,7 +1191,7 @@ const styles = StyleSheet.create({
 
     // Scroll Content
     scrollContent: {
-        paddingBottom: 140,
+        paddingBottom: 100,
     },
 
     // Day Details

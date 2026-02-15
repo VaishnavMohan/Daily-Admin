@@ -124,10 +124,13 @@ export const AddCardScreen = ({ navigation, route }: any) => {
             let targetMonth = today.getMonth();
             const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
             const finalDate = new Date(targetYear, targetMonth, Math.min(selectedDay, daysInMonth));
+            // Allow backdating: Do not automatically push to next month if date is in the past.
+            /*
             if (finalDate < today) {
                 targetMonth++;
                 if (targetMonth > 11) { targetMonth = 0; targetYear++; }
             }
+            */
             const adjustedFinalDate = new Date(targetYear, targetMonth, Math.min(selectedDay, daysInMonth));
 
             let recurrence: 'once' | 'daily' | 'weekly' | 'monthly' | 'yearly' = recurrenceFreq;
@@ -151,9 +154,8 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                 return `${y}-${m}-${d}`;
             };
 
-            let taskDueDate = (recurrenceFreq === 'daily' || recurrenceFreq === 'weekly')
-                ? formatDate(today)
-                : formatDate(adjustedFinalDate);
+            // Always use the selected date, even for daily/weekly (allows starting in the past)
+            let taskDueDate = formatDate(adjustedFinalDate);
 
             let autoType: 'bill' | 'checklist' = 'checklist';
             if (['finance', 'housing', 'utility', 'medicine'].includes(selectedCategory)) {

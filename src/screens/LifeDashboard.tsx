@@ -15,11 +15,13 @@ import { TaskRow } from '../components/TaskRow';
 import { DailyProgress } from '../components/DailyProgress';
 import WebSwipeable from '../components/WebSwipeable';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function LifeDashboard({ navigation }: any) {
     const { colors, theme } = useTheme();
+    const { isGuest } = useAuth();
     const [tasks, setTasks] = useState<LifeTask[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [filterConstraint, setFilterConstraint] = useState<'all' | 'urgent'>('all');
@@ -64,16 +66,7 @@ export default function LifeDashboard({ navigation }: any) {
         loadData();
     };
 
-    const handleSnoozeTask = async (task: LifeTask) => {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const y = tomorrow.getFullYear();
-        const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
-        const d = String(tomorrow.getDate()).padStart(2, '0');
-        const updatedTask = { ...task, dueDate: `${y}-${m}-${d}` };
-        await StorageService.updateTask(updatedTask);
-        loadData();
-    };
+
 
     const handleDeleteTask = (task: LifeTask) => {
         setModalConfig({
@@ -169,10 +162,47 @@ export default function LifeDashboard({ navigation }: any) {
                 style={[styles.fixedHeader, { paddingTop: insets.top, height: headerHeight, backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.97)' : 'rgba(248, 250, 252, 0.97)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}
             >
                 <View style={styles.topBar}>
-                    <View style={[styles.brandContainer, { backgroundColor: `${colors.primary}08`, borderColor: `${colors.primary}18` }]}>
-                        <MaterialCommunityIcons name="shield-check-outline" size={20} color={colors.primary} />
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => {
+                            if (isGuest) {
+                                setModalConfig({
+                                    visible: true,
+                                    title: "Data Not Synced",
+                                    message: "Your data is only stored on this device. Sign up to protect it from loss.",
+                                    confirmText: "Protect Data",
+                                    cancelText: "Later",
+                                    singleButton: false,
+                                    isDanger: false,
+                                    onConfirm: () => {
+                                        setModalConfig(prev => ({ ...prev, visible: false }));
+                                        navigation.navigate('Auth');
+                                    }
+                                });
+                            } else {
+                                setModalConfig({
+                                    visible: true,
+                                    title: "Cloud Sync Active",
+                                    message: "Your data is securely backed up to the cloud.",
+                                    confirmText: "OK",
+                                    singleButton: true,
+                                    isDanger: false,
+                                });
+                            }
+                        }}
+                        style={[styles.brandContainer, {
+                            backgroundColor: isGuest ? 'rgba(239, 68, 68, 0.08)' : `${colors.primary}08`,
+                            borderColor: isGuest ? 'rgba(239, 68, 68, 0.2)' : `${colors.primary}18`
+                        }]}
+                    >
+                        <MaterialCommunityIcons
+                            name={isGuest ? "shield-alert-outline" : "shield-check-outline"}
+                            size={20}
+                            color={isGuest ? '#EF4444' : colors.primary}
+                        />
                         <Text style={[styles.brandText, { color: colors.text }]}>DAILY ADMIN</Text>
-                    </View>
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                         onPress={() => navigation.navigate('Profile')}
                         style={[styles.settingsButton, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}
@@ -254,81 +284,59 @@ export default function LifeDashboard({ navigation }: any) {
                                 layout={LinearTransition.springify()}
                                 style={styles.taskRowWrapper}
                             >
-                                <View style={styles.taskRowWithActions}>
-                                    <View style={styles.taskRowContent}>
-                                        <WebSwipeable
-                                            ref={(ref) => {
-                                                if (ref) rowRefs.current.set(task.id, ref);
-                                            }}
-                                            onSwipeableWillOpen={() => {
-                                                [...rowRefs.current.entries()].forEach(([key, ref]) => {
-                                                    if (key !== task.id && ref) ref.close();
-                                                });
-                                            }}
-                                            renderRightActions={(progress, dragX) => {
-                                                const scale = dragX.interpolate({
-                                                    inputRange: [-100, 0],
-                                                    outputRange: [1, 0],
-                                                    extrapolate: 'clamp',
-                                                });
-                                                const opacity = progress.interpolate({
-                                                    inputRange: [0, 1],
-                                                    outputRange: [0, 1],
-                                                });
+                                <WebSwipeable
+                                    ref={(ref) => {
+                                        if (ref) rowRefs.current.set(task.id, ref);
+                                    }}
+                                    onSwipeableWillOpen={() => {
+                                        [...rowRefs.current.entries()].forEach(([key, ref]) => {
+                                            if (key !== task.id && ref) ref.close();
+                                        });
+                                    }}
+                                    renderRightActions={(progress, dragX) => {
+                                        const scale = dragX.interpolate({
+                                            inputRange: [-100, 0],
+                                            outputRange: [1, 0],
+                                            extrapolate: 'clamp',
+                                        });
+                                        const opacity = progress.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [0, 1],
+                                        });
 
-                                                return (
-                                                    <TouchableOpacity
-                                                        onPress={() => {
-                                                            rowRefs.current.get(task.id)?.close();
-                                                            handleDeleteTask(task);
-                                                        }}
-                                                        style={styles.deleteActionWrapper}
+                                        return (
+                                            <TouchableOpacity
+                                                onPress={() => {
+                                                    rowRefs.current.get(task.id)?.close();
+                                                    handleDeleteTask(task);
+                                                }}
+                                                style={styles.deleteActionWrapper}
+                                            >
+                                                <RNAnimated.View style={[styles.deleteActionInner, { opacity }]}>
+                                                    <LinearGradient
+                                                        colors={['#EF4444', '#DC2626', '#B91C1C']}
+                                                        start={{ x: 0, y: 0 }}
+                                                        end={{ x: 1, y: 1 }}
+                                                        style={styles.deleteGradient}
                                                     >
-                                                        <RNAnimated.View style={[styles.deleteActionInner, { opacity }]}>
-                                                            <LinearGradient
-                                                                colors={['#EF4444', '#DC2626', '#B91C1C']}
-                                                                start={{ x: 0, y: 0 }}
-                                                                end={{ x: 1, y: 1 }}
-                                                                style={styles.deleteGradient}
-                                                            >
-                                                                <View style={styles.deleteIconContainer}>
-                                                                    <MaterialCommunityIcons name="trash-can-outline" size={22} color="#fff" />
-                                                                </View>
-                                                                <Text style={styles.deleteText}>Delete</Text>
-                                                            </LinearGradient>
-                                                        </RNAnimated.View>
-                                                    </TouchableOpacity>
-                                                );
-                                            }}
-                                        >
-                                            <TaskRow
-                                                task={task}
-                                                onToggle={() => handleToggleTask(task)}
-                                                onPress={() => { }}
-                                                onLongPress={() => handleDeleteTask(task)}
-                                                style={styles.taskRowInner}
-                                            />
-                                        </WebSwipeable>
-                                    </View>
-                                    <View style={styles.quickActions}>
-                                        <TouchableOpacity
-                                            onPress={() => handleToggleTask(task)}
-                                            style={styles.quickActionButton}
-                                        >
-                                            <View style={[styles.quickActionCircle, { backgroundColor: 'rgba(74, 222, 128, 0.15)', borderColor: 'rgba(74, 222, 128, 0.3)' }]}>
-                                                <MaterialCommunityIcons name="check" size={16} color="#4ADE80" />
-                                            </View>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            onPress={() => handleSnoozeTask(task)}
-                                            style={styles.quickActionButton}
-                                        >
-                                            <View style={[styles.quickActionCircle, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
-                                                <MaterialCommunityIcons name="clock-outline" size={16} color="#F59E0B" />
-                                            </View>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
+                                                        <View style={styles.deleteIconContainer}>
+                                                            <MaterialCommunityIcons name="trash-can-outline" size={22} color="#fff" />
+                                                        </View>
+                                                        <Text style={styles.deleteText}>Delete</Text>
+                                                    </LinearGradient>
+                                                </RNAnimated.View>
+                                            </TouchableOpacity>
+                                        );
+                                    }}
+                                >
+                                    <TaskRow
+                                        task={task}
+                                        onToggle={() => handleToggleTask(task)}
+                                        onPress={() => { }}
+                                        onLongPress={() => handleDeleteTask(task)}
+                                        style={styles.taskRowInner}
+                                    />
+                                </WebSwipeable>
                             </Animated.View>
                         ))
                     ) : (
@@ -613,30 +621,6 @@ const styles = StyleSheet.create({
     },
     taskRowInner: {
         marginBottom: 0,
-    },
-    taskRowWithActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    taskRowContent: {
-        flex: 1,
-    },
-    quickActions: {
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 8,
-        marginLeft: 10,
-    },
-    quickActionButton: {
-        padding: 2,
-    },
-    quickActionCircle: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
     },
     deleteActionWrapper: {
         justifyContent: 'center',
