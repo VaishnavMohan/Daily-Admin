@@ -14,6 +14,8 @@ import { StorageService } from '../services/StorageService';
 import { LifeTask, TaskCategory, ExpenseBudget } from '../types';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { printToFileAsync } from 'expo-print';
+import { HtmlTemplateService } from '../services/HtmlTemplateService';
 import WebSwipeable from '../components/WebSwipeable';
 import { SpendingHeatmap } from '../components/SpendingHeatmap';
 
@@ -160,13 +162,6 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
 
     const handleExport = async () => {
         try {
-            const rangeName = filterRange === 'day' ? 'Today' :
-                filterRange === 'month' ? currentViewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) :
-                    filterRange === 'year' ? currentViewMonth.getFullYear().toString() :
-                        filterRange.toUpperCase();
-
-            let csvContent = 'Date,Category,Description,Amount (INR)\n';
-
             if (filteredExpenses.length === 0) {
                 setModalConfig({
                     visible: true,
@@ -177,22 +172,34 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                 return;
             }
 
-            const expensesToExport = filteredExpenses; // Use filtered expenses for export
+            const rangeName = filterRange === 'day' ? 'Today' :
+                filterRange === 'month' ? currentViewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) :
+                    filterRange === 'year' ? currentViewMonth.getFullYear().toString() :
+                        filterRange.toUpperCase();
 
-            csvContent = "Date,Category,Title,Amount,Note\n" +
-                expensesToExport.map(e => {
-                    const date = new Date(e.dueDate).toLocaleDateString(); // Use dueDate for date
-                    const category = categories.find(c => c.key === e.category)?.label || e.category;
-                    return `${date},${category},"${e.title}",${e.amount},"${e.notes || ''}"`;
-                }).join("\n");
+            // Calculate totals for report
+            const expensesToExport = filteredExpenses;
+            const totalSpent = expensesToExport.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-            const fileName = `Expenses_${rangeName.replace(/ /g, '_')}.csv`;
-            const fileUri = FileSystem.documentDirectory + fileName;
+            // Generate HTML
+            const html = HtmlTemplateService.generateExpenseReport(
+                expensesToExport,
+                rangeName,
+                totalSpent,
+                user?.name || 'Valued User'
+            );
 
-            await FileSystem.writeAsStringAsync(fileUri, csvContent);
-            await Sharing.shareAsync(fileUri, {
-                mimeType: 'text/csv',
-                dialogTitle: `Export ${rangeName} Expenses`
+            // Generate PDF
+            const { uri } = await printToFileAsync({
+                html,
+                base64: false
+            });
+
+            // Share PDF
+            await Sharing.shareAsync(uri, {
+                UTI: '.pdf',
+                mimeType: 'application/pdf',
+                dialogTitle: `Export ${rangeName} Report`
             });
 
         } catch (error) {
@@ -200,7 +207,7 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
             setModalConfig({
                 visible: true,
                 title: "Export Failed",
-                message: "Could not export data. Please try again.",
+                message: "Could not generate report. Please try again.",
                 singleButton: true
             });
         }
