@@ -1,65 +1,81 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform, Dimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import Colors from '../constants/Colors';
 import { useTheme } from '../context/ThemeContext';
 import { TaskCategory } from '../types';
+
+const { width } = Dimensions.get('window');
+const COLUMN_WIDTH = (width - 48 - 16) / 2; // 48 padding (24*2), 16 gap
 
 interface CategoryOption {
     id: TaskCategory;
     label: string;
     icon: string;
     color: string;
+    gradient: string[];
     description: string;
+    count?: number; // Placeholder for real data
 }
 
 const CATEGORIES: CategoryOption[] = [
-    { id: 'finance', label: 'Finance', icon: 'credit-card-outline', color: Colors.dark.primary, description: 'Bills, Cards, EMI' },
-    { id: 'academic', label: 'Academic', icon: 'school-outline', color: '#60a5fa', description: 'Assignments, Thesis, Exams' },
-    { id: 'housing', label: 'Housing', icon: 'home-outline', color: '#f472b6', description: 'Rent, Maintenance' },
-    { id: 'utility', label: 'Utility', icon: 'lightning-bolt-outline', color: '#a78bfa', description: 'Electricity, Water, Gas' },
-    { id: 'work', label: 'Work', icon: 'briefcase-outline', color: '#34d399', description: 'Projects, Deadlines' },
-    { id: 'health', label: 'Health', icon: 'heart-pulse', color: '#f87171', description: 'Checkups, Medicines' },
-    { id: 'other', label: 'Other', icon: 'dots-horizontal', color: Colors.dark.textSecondary, description: 'Miscellaneous Tasks' },
+    { id: 'finance', label: 'Finance', icon: 'wallet-outline', color: '#38bdf8', gradient: ['#0ea5e9', '#0284c7'], description: 'Bills & Budget' },
+    { id: 'work', label: 'Work', icon: 'briefcase-outline', color: '#34d399', gradient: ['#10b981', '#059669'], description: 'Projects & Tasks' },
+    { id: 'academic', label: 'Academic', icon: 'school-outline', color: '#818cf8', gradient: ['#6366f1', '#4f46e5'], description: 'Study & Exams' },
+    { id: 'health', label: 'Health', icon: 'heart-pulse', color: '#f472b6', gradient: ['#ec4899', '#db2777'], description: 'Fitness & Meds' },
+    { id: 'housing', label: 'Housing', icon: 'home-outline', color: '#fbbf24', gradient: ['#f59e0b', '#d97706'], description: 'Rent & Utilities' },
+    { id: 'utility', label: 'Utility', icon: 'lightning-bolt-outline', color: '#a78bfa', gradient: ['#8b5cf6', '#7c3aed'], description: 'Bills & Meter' },
+    { id: 'shopping', label: 'Shopping', icon: 'shopping-outline', color: '#fb7185', gradient: ['#f43f5e', '#e11d48'], description: 'Groceries & Fun' },
+    { id: 'entertainment', label: 'Fun', icon: 'movie-open-outline', color: '#fca5a5', gradient: ['#f87171', '#ef4444'], description: 'Movies & Events' },
+    { id: 'transport', label: 'Transport', icon: 'car-outline', color: '#94a3b8', gradient: ['#64748b', '#475569'], description: 'Commute & Fuel' },
+    { id: 'other', label: 'Other', icon: 'dots-horizontal', color: Colors.dark.textSecondary, gradient: ['#334155', '#1e293b'], description: 'Misc Items' },
 ];
-
-import { GlassCard } from '../components/GlassCard';
 
 export default function CategoriesScreen({ navigation }: any) {
     const insets = useSafeAreaInsets();
     const { colors, theme } = useTheme();
 
     const renderItem = ({ item, index }: { item: CategoryOption; index: number }) => (
-        <Animated.View entering={FadeInDown.delay(80 * index).springify()}>
+        <Animated.View
+            entering={FadeInDown.delay(index * 50).springify()}
+            style={styles.gridItem}
+        >
             <TouchableOpacity
-                activeOpacity={0.8}
+                activeOpacity={0.9}
                 onPress={() => navigation.navigate('CategoryDetail', { category: item.id })}
-                style={{ marginBottom: 14 }}
+                style={styles.cardContainer}
             >
-                <GlassCard variant="medium" style={styles.cardContainer}>
-                    <LinearGradient
-                        colors={[`${item.color}15`, `${item.color}05`, 'transparent']}
-                        style={StyleSheet.absoluteFill}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    />
-                    <View style={styles.cardContent}>
-                        <View style={[styles.iconContainer, { backgroundColor: `${item.color}20`, borderColor: `${item.color}40` }]}>
-                            <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
-                        </View>
-                        <View style={styles.textContainer}>
-                            <Text style={[styles.categoryTitle, { color: colors.text }]}>{item.label}</Text>
-                            <Text style={[styles.categoryDesc, { color: colors.textSecondary }]}>{item.description}</Text>
-                        </View>
-                        <View style={[styles.arrowContainer, { backgroundColor: `${item.color}15`, borderColor: `${item.color}25` }]}>
-                            <MaterialCommunityIcons name="chevron-right" size={18} color={item.color} />
-                        </View>
+                <LinearGradient
+                    colors={item.gradient as any}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                />
+
+                {/* Glass overlay for texture */}
+                <LinearGradient
+                    colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                />
+
+                <View style={styles.cardContent}>
+                    <View style={styles.iconCircle}>
+                        <MaterialCommunityIcons name={item.icon as any} size={28} color="#fff" />
                     </View>
-                </GlassCard>
+                    <View style={styles.textWrapper}>
+                        <Text style={styles.cardTitle}>{item.label}</Text>
+                        <Text style={styles.cardDesc} numberOfLines={1}>{item.description}</Text>
+                    </View>
+                </View>
+
+                {/* Decorative circle */}
+                <View style={[styles.decorativeCircle, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
             </TouchableOpacity>
         </Animated.View>
     );
@@ -70,28 +86,26 @@ export default function CategoriesScreen({ navigation }: any) {
                 colors={colors.gradients.AppBackground as any}
                 style={StyleSheet.absoluteFill}
             />
+
             <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-                <View style={[styles.headerWrapper, { borderBottomColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}>
-                    <BlurView intensity={30} tint={theme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-                    <LinearGradient
-                        colors={theme === 'dark' ? ['rgba(56, 189, 248, 0.08)', 'transparent'] : ['rgba(14, 165, 233, 0.05)', 'transparent']}
-                        style={StyleSheet.absoluteFill}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    />
-                    <View style={styles.header}>
-                        <Animated.View entering={FadeInDown.delay(50).springify()}>
-                            <Text style={[styles.headerTitle, { color: colors.text }]}>Categories</Text>
-                            <Text style={[styles.subHeader, { color: colors.textSecondary }]}>Manage your life areas</Text>
-                        </Animated.View>
-                    </View>
+                {/* Header */}
+                <View style={styles.header}>
+                    <Animated.View entering={FadeInDown.delay(100).springify()}>
+                        <Text style={[styles.headerTitle, { color: colors.text }]}>Categories</Text>
+                        <Text style={[styles.subHeader, { color: colors.textSecondary }]}>
+                            Organize your finances and tasks
+                        </Text>
+                    </Animated.View>
                 </View>
 
+                {/* Grid */}
                 <FlatList
                     data={CATEGORIES}
                     keyExtractor={item => item.id}
                     renderItem={renderItem}
+                    numColumns={2}
                     contentContainerStyle={styles.listContent}
+                    columnWrapperStyle={styles.columnWrapper}
                     showsVerticalScrollIndicator={false}
                 />
             </View>
@@ -107,74 +121,84 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
     },
-    headerWrapper: {
-        overflow: 'hidden',
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.06)',
-        position: 'relative',
-    },
     header: {
         paddingHorizontal: 24,
         paddingBottom: 20,
-        paddingTop: 14,
+        paddingTop: 10,
     },
     headerTitle: {
         fontSize: 34,
         fontWeight: '800',
         color: Colors.dark.white,
         letterSpacing: -1,
+        marginBottom: 4,
     },
     subHeader: {
-        fontSize: 15,
+        fontSize: 16,
         color: Colors.dark.textSecondary,
-        marginTop: 4,
         fontWeight: '500',
     },
     listContent: {
-        padding: 24,
-        paddingTop: 20,
+        paddingHorizontal: 24,
         paddingBottom: 100,
     },
+    columnWrapper: {
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+    gridItem: {
+        width: COLUMN_WIDTH,
+        height: COLUMN_WIDTH * 1.1, // Slightly taller than wide
+    },
     cardContainer: {
-        borderRadius: 22,
-        borderWidth: 1,
-        borderColor: Colors.dark.glass.border,
+        flex: 1,
+        borderRadius: 24,
         overflow: 'hidden',
+        position: 'relative',
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
     },
     cardContent: {
-        padding: 18,
-        flexDirection: 'row',
-        alignItems: 'center',
+        flex: 1,
+        padding: 16,
+        justifyContent: 'space-between',
     },
-    iconContainer: {
-        width: 54,
-        height: 54,
-        borderRadius: 18,
+    iconCircle: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
-        borderWidth: 1,
+        // backdropFilter removed as it is not supported in React Native
     },
-    textContainer: {
-        flex: 1,
+    textWrapper: {
+        gap: 2,
     },
-    categoryTitle: {
+    cardTitle: {
         fontSize: 18,
         fontWeight: '700',
-        marginBottom: 3,
-        letterSpacing: -0.3,
+        color: '#fff',
+        letterSpacing: -0.5,
     },
-    categoryDesc: {
-        fontSize: 13,
-        color: Colors.dark.textSecondary,
+    cardDesc: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.8)',
         fontWeight: '500',
     },
-    arrowContainer: {
-        width: 34,
-        height: 34,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
+    decorativeCircle: {
+        position: 'absolute',
+        top: -20,
+        right: -20,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        zIndex: -1,
     }
 });
