@@ -9,6 +9,7 @@ import { Button } from '../components/Button';
 import { StorageService } from '../services/StorageService';
 import { NotificationService } from '../services/NotificationService';
 import { useTheme } from '../context/ThemeContext';
+import { GlassModal } from '../components/GlassModal';
 
 export const SettingsScreen = ({ navigation }: any) => {
     const insets = useSafeAreaInsets();
@@ -16,6 +17,16 @@ export const SettingsScreen = ({ navigation }: any) => {
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [frequency, setFrequency] = useState<'off' | 'due-only' | 'urgent-due' | '3-day' | '5-day'>('urgent-due');
     const [isLoading, setIsLoading] = useState(false);
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        confirmText?: string;
+        cancelText?: string;
+        onConfirm?: () => void;
+        isDanger?: boolean;
+        singleButton?: boolean;
+    }>({ visible: false, title: '', message: '' });
 
     useEffect(() => {
         loadSettings();
@@ -46,12 +57,28 @@ export const SettingsScreen = ({ navigation }: any) => {
             const cards = await StorageService.getTasks();
             await NotificationService.rescheduleAll(cards, settings);
 
-            Alert.alert('Success', 'Settings saved successfully!', [
-                { text: 'OK', onPress: () => navigation.goBack() }
-            ]);
+            setModalConfig({
+                visible: true,
+                title: "Success",
+                message: "Settings saved successfully!",
+                confirmText: "OK",
+                singleButton: true,
+                onConfirm: () => {
+                    setModalConfig(prev => ({ ...prev, visible: false }));
+                    navigation.goBack();
+                }
+            });
         } catch (error) {
             console.error('Error saving settings:', error);
-            Alert.alert('Error', 'Failed to save settings');
+            setModalConfig({
+                visible: true,
+                title: "Error",
+                message: "Failed to save settings. Please try again.",
+                confirmText: "OK",
+                singleButton: true,
+                isDanger: true,
+                onConfirm: () => setModalConfig(prev => ({ ...prev, visible: false }))
+            });
         } finally {
             setIsLoading(false);
         }
@@ -224,6 +251,20 @@ export const SettingsScreen = ({ navigation }: any) => {
                     </Animated.View>
                 </ScrollView>
             </View>
+            <GlassModal
+                visible={modalConfig.visible}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                confirmText={modalConfig.confirmText}
+                cancelText={modalConfig.cancelText}
+                onConfirm={() => {
+                    if (modalConfig.onConfirm) modalConfig.onConfirm();
+                    else setModalConfig(prev => ({ ...prev, visible: false }));
+                }}
+                onCancel={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                isDanger={modalConfig.isDanger}
+                singleButton={modalConfig.singleButton}
+            />
         </View>
     );
 };

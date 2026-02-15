@@ -35,6 +35,7 @@ const Colors = {
             Progress: ['#FACC15', '#FDE047', '#EAB308'],
             ProgressTrack: '#334155',
             Urgent: ['rgba(248, 113, 113, 0.2)', 'rgba(248, 113, 113, 0.05)'],
+            Primary: ['#38BDF8', '#0EA5E9'] as const,
             Finance: ['#0EA5E9', '#0284C7'] as const,
             Academic: ['#8B5CF6', '#7C3AED'] as const,
             Housing: ['#10B981', '#059669'] as const,

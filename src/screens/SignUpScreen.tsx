@@ -7,12 +7,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../constants/Colors';
 import { supabase } from '../services/SupabaseClient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { GlassModal } from '../components/GlassModal';
 
 export const SignUpScreen = ({ navigation }: any) => {
     const insets = useSafeAreaInsets();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        singleButton?: boolean;
+        onConfirm?: () => void;
+    }>({ visible: false, title: '', message: '', singleButton: true });
 
     const isValidEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,17 +29,17 @@ export const SignUpScreen = ({ navigation }: any) => {
 
     const handleSignUp = async () => {
         if (!email || !password) {
-            Alert.alert("Error", "Please fill in all fields");
+            setModalConfig({ visible: true, title: "Error", message: "Please fill in all fields", singleButton: true });
             return;
         }
 
         if (!isValidEmail(email)) {
-            Alert.alert("Error", "Please enter a valid email address");
+            setModalConfig({ visible: true, title: "Error", message: "Please enter a valid email address", singleButton: true });
             return;
         }
 
         if (password.length < 6) {
-            Alert.alert("Error", "Password must be at least 6 characters long");
+            setModalConfig({ visible: true, title: "Error", message: "Password must be at least 6 characters long", singleButton: true });
             return;
         }
 
@@ -42,10 +50,15 @@ export const SignUpScreen = ({ navigation }: any) => {
         });
 
         if (error) {
-            Alert.alert("Sign Up Failed", error.message);
+            setModalConfig({ visible: true, title: "Sign Up Failed", message: error.message, singleButton: true });
         } else {
-            Alert.alert("Success", "Check your email for the confirmation link!");
-            navigation.navigate('Login');
+            setModalConfig({
+                visible: true,
+                title: "Success",
+                message: "Check your email for the confirmation link!",
+                singleButton: true,
+                onConfirm: () => navigation.navigate('Login')
+            });
         }
         setLoading(false);
     };
@@ -128,6 +141,17 @@ export const SignUpScreen = ({ navigation }: any) => {
 
                 </ScrollView>
             </KeyboardAvoidingView>
+            <GlassModal
+                visible={modalConfig.visible}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                singleButton={modalConfig.singleButton}
+                onConfirm={() => {
+                    if (modalConfig.onConfirm) modalConfig.onConfirm();
+                    else setModalConfig(prev => ({ ...prev, visible: false }));
+                }}
+                onCancel={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+            />
         </View>
     );
 };

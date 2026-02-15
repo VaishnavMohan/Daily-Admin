@@ -117,7 +117,7 @@ export default function LifeDashboard({ navigation }: any) {
             confirmText: "Delete",
             isDanger: true,
             onConfirm: async () => {
-                await StorageService.deleteTask(task.id);
+                await StorageService.deleteTask(task.id, user?.id);
                 loadData();
                 setModalConfig(prev => ({ ...prev, visible: false }));
             }

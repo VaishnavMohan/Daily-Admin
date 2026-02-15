@@ -7,7 +7,9 @@ import Animated, { FadeInDown, FadeInRight, Layout, ZoomIn } from 'react-native-
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../constants/Colors';
+import { GlassModal } from '../components/GlassModal';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { StorageService } from '../services/StorageService';
 import { LifeTask, TaskCategory, ExpenseBudget } from '../types';
 import * as FileSystem from 'expo-file-system';
@@ -20,6 +22,7 @@ const { width } = Dimensions.get('window');
 export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
     const insets = useSafeAreaInsets();
     const { colors, theme } = useTheme();
+    const { user } = useAuth();
     const [expenses, setExpenses] = useState<LifeTask[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -211,7 +214,7 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
             confirmText: "Delete",
             isDanger: true,
             onConfirm: async () => {
-                await StorageService.deleteTask(expense.id);
+                await StorageService.deleteTask(expense.id, user?.id);
                 loadExpenses();
                 setModalConfig(prev => ({ ...prev, visible: false }));
             }
@@ -514,22 +517,22 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                 animationType="fade"
                 onRequestClose={() => setShowInsights(false)}
             >
-                <BlurView intensity={40} tint="dark" style={styles.insightsOverlay}>
+                <BlurView intensity={40} tint={theme === 'dark' ? 'dark' : 'light'} style={styles.insightsOverlay}>
                     <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowInsights(false)} />
-                    <View style={styles.insightsCard}>
+                    <View style={[styles.insightsCard, { backgroundColor: theme === 'dark' ? '#1E293B' : '#fff', borderColor: theme === 'dark' ? 'rgba(56,189,248,0.15)' : 'rgba(0,0,0,0.1)' }]}>
                         <LinearGradient
-                            colors={['rgba(56,189,248,0.12)', 'rgba(30,41,59,0)']}
+                            colors={theme === 'dark' ? ['rgba(56,189,248,0.12)', 'rgba(30,41,59,0)'] : ['rgba(56,189,248,0.08)', 'rgba(255,255,255,0)']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.insightsGlow}
                         />
                         <View style={styles.insightsHeader}>
                             <View style={styles.insightsTitleRow}>
-                                <MaterialCommunityIcons name="chart-bar" size={22} color={Colors.dark.primary} />
-                                <Text style={styles.insightsTitle}>Spending Insights</Text>
+                                <MaterialCommunityIcons name="chart-bar" size={22} color={colors.primary} />
+                                <Text style={[styles.insightsTitle, { color: colors.text }]}>Spending Insights</Text>
                             </View>
-                            <TouchableOpacity onPress={() => setShowInsights(false)} style={styles.insightsCloseBtn}>
-                                <MaterialCommunityIcons name="close" size={22} color={Colors.dark.textSecondary} />
+                            <TouchableOpacity onPress={() => setShowInsights(false)} style={[styles.insightsCloseBtn, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
+                                <MaterialCommunityIcons name="close" size={22} color={colors.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
@@ -546,22 +549,23 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                 onRequestClose={() => setShowMonthPicker(false)}
             >
                 <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowMonthPicker(false)}>
-                    <BlurView intensity={80} tint="dark" style={styles.pickerContent}>
-                        <Text style={styles.pickerTitle}>Select Month</Text>
+                    <BlurView intensity={80} tint={theme === 'dark' ? 'dark' : 'light'} style={[styles.pickerContent, { backgroundColor: theme === 'dark' ? 'rgba(30, 27, 75, 0.9)' : 'rgba(255,255,255,0.95)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)' }]}>
+                        <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Month</Text>
                         {availableMonths.map((date, index) => (
                             <TouchableOpacity
                                 key={index}
-                                style={styles.pickerItem}
+                                style={[styles.pickerItem, { borderBottomColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
                                 onPress={() => changeMonth(date)}
                             >
                                 <Text style={[
                                     styles.pickerItemText,
-                                    date.getMonth() === currentViewMonth.getMonth() && styles.pickerItemActive
+                                    { color: colors.text },
+                                    date.getMonth() === currentViewMonth.getMonth() && { color: colors.primary, fontWeight: 'bold' }
                                 ]}>
                                     {date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                                 </Text>
                                 {date.getMonth() === currentViewMonth.getMonth() && (
-                                    <MaterialCommunityIcons name="check" size={20} color={Colors.dark.primary} />
+                                    <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
                                 )}
                             </TouchableOpacity>
                         ))}
@@ -828,28 +832,28 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                 animationType="slide"
                 onRequestClose={() => setShowAddModal(false)}
             >
-                <BlurView intensity={40} tint="dark" style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+                <BlurView intensity={40} tint={theme === 'dark' ? 'dark' : 'light'} style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: theme === 'dark' ? '#1E1B4B' : '#fff', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}>
                         <LinearGradient
-                            colors={['rgba(56,189,248,0.08)', 'rgba(30,41,59,0)']}
+                            colors={theme === 'dark' ? ['rgba(56,189,248,0.08)', 'rgba(30,41,59,0)'] : ['rgba(56,189,248,0.05)', 'rgba(255,255,255,0)']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.modalGlow}
                         />
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Add Expense</Text>
-                            <TouchableOpacity onPress={() => setShowAddModal(false)} style={styles.modalCloseBtn}>
-                                <MaterialCommunityIcons name="close" size={22} color={Colors.dark.textSecondary} />
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Expense</Text>
+                            <TouchableOpacity onPress={() => setShowAddModal(false)} style={[styles.modalCloseBtn, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
+                                <MaterialCommunityIcons name="close" size={22} color={colors.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
-                        <Text style={styles.dateLabel}>For {selectedDate.toLocaleDateString()}</Text>
+                        <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>For {selectedDate.toLocaleDateString()}</Text>
 
                         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.currencySymbol}>₹</Text>
+                            <View style={[styles.inputContainer, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+                                <Text style={[styles.currencySymbol, { color: colors.primary }]}>₹</Text>
                                 <TextInput
-                                    style={styles.amountInput}
+                                    style={[styles.amountInput, { color: colors.text }]}
                                     placeholder="0"
                                     placeholderTextColor="rgba(148,163,184,0.4)"
                                     keyboardType="numeric"
@@ -859,10 +863,10 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                                 />
                             </View>
 
-                            <View style={styles.noteInputWrap}>
-                                <MaterialCommunityIcons name="text" size={18} color={Colors.dark.textTertiary} style={styles.noteIcon} />
+                            <View style={[styles.noteInputWrap, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+                                <MaterialCommunityIcons name="text" size={18} color={colors.textTertiary} style={styles.noteIcon} />
                                 <TextInput
-                                    style={styles.noteInput}
+                                    style={[styles.noteInput, { color: colors.text }]}
                                     placeholder="Description"
                                     placeholderTextColor="rgba(148,163,184,0.4)"
                                     value={note}
@@ -871,13 +875,14 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                             </View>
 
                             {/* Category Selector */}
-                            <Text style={styles.categoryLabel}>Category</Text>
+                            <Text style={[styles.categoryLabel, { color: colors.textTertiary }]}>Category</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll} keyboardShouldPersistTaps="always">
                                 {categories.map(cat => (
                                     <TouchableOpacity
                                         key={cat.key}
                                         style={[
                                             styles.categoryChip,
+                                            { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
                                             selectedCategory === cat.key && styles.categoryChipSelected,
                                             selectedCategory === cat.key && { backgroundColor: cat.color, borderColor: cat.color }
                                         ]}
@@ -897,6 +902,7 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                                         </View>
                                         <Text style={[
                                             styles.categoryChipText,
+                                            { color: colors.textSecondary },
                                             selectedCategory === cat.key && styles.categoryChipTextSelected
                                         ]}>{cat.label}</Text>
                                     </TouchableOpacity>
@@ -926,35 +932,35 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                 animationType="slide"
                 onRequestClose={() => setShowBudgetModal(false)}
             >
-                <BlurView intensity={40} tint="dark" style={styles.modalOverlay}>
-                    <View style={styles.budgetModalContent}>
+                <BlurView intensity={40} tint={theme === 'dark' ? 'dark' : 'light'} style={styles.modalOverlay}>
+                    <View style={[styles.budgetModalContent, { backgroundColor: theme === 'dark' ? '#1E1B4B' : '#fff', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}>
                         <LinearGradient
-                            colors={['rgba(56,189,248,0.08)', 'rgba(30,41,59,0)']}
+                            colors={theme === 'dark' ? ['rgba(56,189,248,0.08)', 'rgba(30,41,59,0)'] : ['rgba(56,189,248,0.05)', 'rgba(255,255,255,0)']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.modalGlow}
                         />
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Set Budget Limits</Text>
-                            <TouchableOpacity onPress={() => setShowBudgetModal(false)} style={styles.modalCloseBtn}>
-                                <MaterialCommunityIcons name="close" size={22} color={Colors.dark.textSecondary} />
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Set Budget Limits</Text>
+                            <TouchableOpacity onPress={() => setShowBudgetModal(false)} style={[styles.modalCloseBtn, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
+                                <MaterialCommunityIcons name="close" size={22} color={colors.textSecondary} />
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.budgetModalSubtitle}>
+                        <Text style={[styles.budgetModalSubtitle, { color: colors.textSecondary }]}>
                             Monthly spending limits per category
                         </Text>
 
                         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
                             {categories.map(cat => (
-                                <View key={cat.key} style={styles.budgetInputRow}>
+                                <View key={cat.key} style={[styles.budgetInputRow, { borderBottomColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
                                     <View style={[styles.budgetInputIcon, { backgroundColor: cat.color + '18' }]}>
                                         <MaterialCommunityIcons name={cat.icon} size={20} color={cat.color} />
                                     </View>
-                                    <Text style={styles.budgetInputLabel}>{cat.label}</Text>
-                                    <View style={styles.budgetInputWrap}>
-                                        <Text style={styles.budgetInputCurrency}>₹</Text>
+                                    <Text style={[styles.budgetInputLabel, { color: colors.text }]}>{cat.label}</Text>
+                                    <View style={[styles.budgetInputWrap, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+                                        <Text style={[styles.budgetInputCurrency, { color: colors.primary }]}>₹</Text>
                                         <TextInput
-                                            style={styles.budgetInputField}
+                                            style={[styles.budgetInputField, { color: colors.text }]}
                                             placeholder="0"
                                             placeholderTextColor="rgba(148,163,184,0.3)"
                                             keyboardType="numeric"
@@ -982,52 +988,21 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
             </Modal>
 
             {/* Universal Glassmorphism Modal */}
-            <Modal
-                transparent
+            {/* Universal Glassmorphism Modal */}
+            <GlassModal
                 visible={modalConfig.visible}
-                animationType="fade"
-                onRequestClose={() => setModalConfig(prev => ({ ...prev, visible: false }))}
-            >
-                <BlurView intensity={20} tint="dark" style={styles.confirmOverlay}>
-                    <View style={styles.confirmCard}>
-                        <View style={styles.confirmIconSection}>
-                            {modalConfig.isDanger ? (
-                                <View style={styles.confirmIconDanger}>
-                                    <MaterialCommunityIcons name="delete-outline" size={32} color="#EF4444" />
-                                </View>
-                            ) : (
-                                <View style={styles.confirmIconInfo}>
-                                    <MaterialCommunityIcons name="information-variant" size={32} color={Colors.dark.primary} />
-                                </View>
-                            )}
-                            <Text style={styles.confirmTitle}>{modalConfig.title}</Text>
-                            <Text style={styles.confirmMessage}>
-                                {modalConfig.message}
-                            </Text>
-                        </View>
-
-                        <View style={styles.confirmActions}>
-                            {!modalConfig.singleButton && (
-                                <TouchableOpacity
-                                    style={styles.confirmCancelBtn}
-                                    onPress={() => setModalConfig(prev => ({ ...prev, visible: false }))}
-                                >
-                                    <Text style={styles.confirmCancelText}>{modalConfig.cancelText || 'Cancel'}</Text>
-                                </TouchableOpacity>
-                            )}
-                            <TouchableOpacity
-                                style={[styles.confirmOkBtn, modalConfig.isDanger && styles.confirmOkBtnDanger]}
-                                onPress={() => {
-                                    if (modalConfig.onConfirm) modalConfig.onConfirm();
-                                    else setModalConfig(prev => ({ ...prev, visible: false }));
-                                }}
-                            >
-                                <Text style={styles.confirmOkText}>{modalConfig.confirmText || 'OK'}</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </BlurView>
-            </Modal >
+                title={modalConfig.title}
+                message={modalConfig.message}
+                confirmText={modalConfig.confirmText}
+                cancelText={modalConfig.cancelText}
+                onConfirm={() => {
+                    if (modalConfig.onConfirm) modalConfig.onConfirm();
+                    else setModalConfig(prev => ({ ...prev, visible: false }));
+                }}
+                onCancel={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                isDanger={modalConfig.isDanger}
+                singleButton={modalConfig.singleButton}
+            />
         </View >
     );
 };

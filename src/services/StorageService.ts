@@ -133,10 +133,29 @@ export const StorageService = {
         return newTasks;
     },
 
-    async deleteTask(taskId: string) {
+    async deleteTask(taskId: string, userId?: string) {
         const tasks = await this.getTasks();
         const newTasks = tasks.filter(t => t.id !== taskId);
         await this.saveTasks(newTasks);
+
+        // Remote Delete
+        try {
+            // Use provided userId or fallback to stored user (which might be unreliable)
+            const storedUser = await this.getUser();
+            const finalUserId = userId || storedUser?.id;
+
+            console.log('StorageService: Deleting task. UserID:', finalUserId);
+
+            if (finalUserId) {
+                console.log('StorageService: Initiating remote delete for', taskId);
+                await SyncService.deleteTask(finalUserId, taskId);
+            } else {
+                console.warn('StorageService: accessing remote delete but no user ID found');
+            }
+        } catch (e) {
+            console.error('Failed to sync deletion', e);
+        }
+
         return newTasks;
     },
 

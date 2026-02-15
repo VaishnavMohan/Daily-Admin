@@ -10,6 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 import { StorageService } from '../services/StorageService';
 import { NotificationService } from '../services/NotificationService';
 import { TaskCategory, LifeTask } from '../types';
+import { GlassModal } from '../components/GlassModal';
 
 const { width } = Dimensions.get('window');
 
@@ -46,6 +47,16 @@ export const AddCardScreen = ({ navigation, route }: any) => {
     const [durationMode, setDurationMode] = useState<'indefinite' | 'fixed' | 'once'>('indefinite');
     const [durationMonths, setDurationMonths] = useState(3);
     const [recurrenceFreq, setRecurrenceFreq] = useState<'once' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        confirmText?: string;
+        cancelText?: string;
+        onConfirm?: () => void;
+        isDanger?: boolean;
+        singleButton?: boolean;
+    }>({ visible: false, title: '', message: '' });
 
     useEffect(() => {
         const today = new Date();
@@ -110,11 +121,25 @@ export const AddCardScreen = ({ navigation, route }: any) => {
 
     const handleSave = async () => {
         if (!title.trim()) {
-            Alert.alert("Missing Detail", "What is this task called?");
+            setModalConfig({
+                visible: true,
+                title: "Missing Detail",
+                message: "What is this task called?",
+                confirmText: "OK",
+                singleButton: true,
+                onConfirm: () => setModalConfig(prev => ({ ...prev, visible: false }))
+            });
             return;
         }
         if (!selectedDay) {
-            Alert.alert("Missing Date", "When is this due?");
+            setModalConfig({
+                visible: true,
+                title: "Missing Date",
+                message: "When is this due?",
+                confirmText: "OK",
+                singleButton: true,
+                onConfirm: () => setModalConfig(prev => ({ ...prev, visible: false }))
+            });
             return;
         }
 
@@ -184,7 +209,15 @@ export const AddCardScreen = ({ navigation, route }: any) => {
 
             navigation.goBack();
         } catch (error) {
-            Alert.alert("Error", "Could not save task.");
+            setModalConfig({
+                visible: true,
+                title: "Error",
+                message: "Could not save task.",
+                confirmText: "OK",
+                singleButton: true,
+                isDanger: true,
+                onConfirm: () => setModalConfig(prev => ({ ...prev, visible: false }))
+            });
         }
     };
 
@@ -394,6 +427,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                         </TouchableOpacity>
                                     );
                                 })}
+
                             </View>
                             {durationMode === 'fixed' && (
                                 <View style={styles.stepperRow}>
@@ -421,6 +455,21 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                     <View style={{ height: 120 }} />
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            <GlassModal
+                visible={modalConfig.visible}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                confirmText={modalConfig.confirmText}
+                cancelText={modalConfig.cancelText}
+                onConfirm={() => {
+                    if (modalConfig.onConfirm) modalConfig.onConfirm();
+                    else setModalConfig(prev => ({ ...prev, visible: false }));
+                }}
+                onCancel={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                isDanger={modalConfig.isDanger}
+                singleButton={modalConfig.singleButton}
+            />
         </View>
     );
 };

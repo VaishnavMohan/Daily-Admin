@@ -8,10 +8,21 @@ import { StorageService } from '../services/StorageService';
 import { LifeTask, TaskCategory } from '../types';
 import { TaskRow } from '../components/TaskRow';
 import { NeonActionSheet } from '../components/NeonActionSheet';
+import { GlassModal } from '../components/GlassModal';
 
 export default function CategoryDetailScreen({ route, navigation }: any) {
     const { category } = route.params as { category: TaskCategory };
     const [tasks, setTasks] = useState<LifeTask[]>([]);
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        confirmText?: string;
+        cancelText?: string;
+        onConfirm?: () => void;
+        isDanger?: boolean;
+        singleButton?: boolean;
+    }>({ visible: false, title: '', message: '' });
 
     useFocusEffect(
         useCallback(() => {
@@ -55,21 +66,19 @@ export default function CategoryDetailScreen({ route, navigation }: any) {
     };
 
     const handleDeleteTask = (task: LifeTask) => {
-        Alert.alert(
-            "Delete Task",
-            `Are you sure you want to delete "${task.title}"?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        await StorageService.deleteTask(task.id);
-                        loadTasks();
-                    }
-                }
-            ]
-        );
+        setModalConfig({
+            visible: true,
+            title: "Delete Task",
+            message: `Are you sure you want to delete "${task.title}"?`,
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            isDanger: true,
+            onConfirm: async () => {
+                await StorageService.deleteTask(task.id);
+                loadTasks();
+                setModalConfig(prev => ({ ...prev, visible: false }));
+            }
+        });
     };
 
     const getCategoryColor = (cat: TaskCategory) => {
@@ -169,6 +178,21 @@ export default function CategoryDetailScreen({ route, navigation }: any) {
                 onClose={() => setMenuVisible(false)}
                 onDelete={confirmDelete}
                 title={selectedTask?.title || "Task Options"}
+            />
+
+            <GlassModal
+                visible={modalConfig.visible}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                confirmText={modalConfig.confirmText}
+                cancelText={modalConfig.cancelText}
+                onConfirm={() => {
+                    if (modalConfig.onConfirm) modalConfig.onConfirm();
+                    else setModalConfig(prev => ({ ...prev, visible: false }));
+                }}
+                onCancel={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                isDanger={modalConfig.isDanger}
+                singleButton={modalConfig.singleButton}
             />
         </View>
     );

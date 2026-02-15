@@ -8,12 +8,23 @@ import { StorageService } from '../services/StorageService';
 import { LifeTask } from '../types';
 import { NotificationService } from '../services/NotificationService';
 import { DateUtils } from '../utils/dateUtils';
+import { GlassModal } from '../components/GlassModal';
 
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen({ navigation }: any) {
     const [tasks, setTasks] = useState<LifeTask[]>([]);
     const [greeting, setGreeting] = useState('');
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        confirmText?: string;
+        cancelText?: string;
+        onConfirm?: () => void;
+        isDanger?: boolean;
+        singleButton?: boolean;
+    }>({ visible: false, title: '', message: '' });
 
     useEffect(() => {
         const hour = new Date().getHours();
@@ -42,42 +53,38 @@ export default function DashboardScreen({ navigation }: any) {
 
         // Sort by Date
         cardTasks.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-        setCards(cardTasks);
+        setTasks(cardTasks);
     };
 
     const handleDelete = (task: LifeTask) => {
-        Alert.alert(
-            "Delete Card?",
-            `Remove ${task.title}?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        await StorageService.deleteTask(task.id);
-                        loadCards();
-                    }
-                }
-            ]
-        );
+        setModalConfig({
+            visible: true,
+            title: "Delete Card?",
+            message: `Remove ${task.title}?`,
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            isDanger: true,
+            onConfirm: async () => {
+                await StorageService.deleteTask(task.id);
+                loadCards();
+                setModalConfig(prev => ({ ...prev, visible: false }));
+            }
+        });
     };
 
     const handleMarkPaid = (task: LifeTask) => {
-        Alert.alert(
-            "Mark as Paid?",
-            "Hide until next cycle?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Confirm",
-                    onPress: async () => {
-                        await StorageService.completeTask(task.id);
-                        loadCards();
-                    }
-                }
-            ]
-        );
+        setModalConfig({
+            visible: true,
+            title: "Mark as Paid?",
+            message: "Hide until next cycle?",
+            confirmText: "Confirm",
+            cancelText: "Cancel",
+            onConfirm: async () => {
+                await StorageService.completeTask(task.id);
+                loadCards();
+                setModalConfig(prev => ({ ...prev, visible: false }));
+            }
+        });
     };
 
     const renderTicket = ({ item }: { item: LifeTask }) => {
@@ -208,6 +215,20 @@ export default function DashboardScreen({ navigation }: any) {
                             <Text style={styles.emptySubText}>Add your first card to get started.</Text>
                         </View>
                     }
+                />
+                <GlassModal
+                    visible={modalConfig.visible}
+                    title={modalConfig.title}
+                    message={modalConfig.message}
+                    confirmText={modalConfig.confirmText}
+                    cancelText={modalConfig.cancelText}
+                    onConfirm={() => {
+                        if (modalConfig.onConfirm) modalConfig.onConfirm();
+                        else setModalConfig(prev => ({ ...prev, visible: false }));
+                    }}
+                    onCancel={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                    isDanger={modalConfig.isDanger}
+                    singleButton={modalConfig.singleButton}
                 />
             </SafeAreaView>
         </View>

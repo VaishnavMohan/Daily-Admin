@@ -8,17 +8,24 @@ import Colors from '../constants/Colors';
 import { supabase } from '../services/SupabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { GlassModal } from '../components/GlassModal';
 
 export const LoginScreen = ({ navigation }: any) => {
     const insets = useSafeAreaInsets();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        singleButton?: boolean;
+    }>({ visible: false, title: '', message: '', singleButton: true });
     const { enterGuestMode } = useAuth();
 
     const handleLogin = async () => {
         if (!email || !password) {
-            Alert.alert("Error", "Please fill in all fields");
+            setModalConfig({ visible: true, title: "Error", message: "Please fill in all fields", singleButton: true });
             return;
         }
 
@@ -29,7 +36,7 @@ export const LoginScreen = ({ navigation }: any) => {
         });
 
         if (error) {
-            Alert.alert("Login Failed", error.message);
+            setModalConfig({ visible: true, title: "Login Failed", message: error.message, singleButton: true });
         } else {
             // Navigate to main app
             navigation.getParent()?.navigate('Root');
@@ -123,6 +130,14 @@ export const LoginScreen = ({ navigation }: any) => {
 
                 </ScrollView>
             </KeyboardAvoidingView>
+            <GlassModal
+                visible={modalConfig.visible}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                singleButton={modalConfig.singleButton}
+                onConfirm={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                onCancel={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+            />
         </View>
     );
 };

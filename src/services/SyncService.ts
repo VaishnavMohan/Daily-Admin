@@ -37,6 +37,27 @@ export const SyncService = {
         }
     },
 
+    async deleteTask(userId: string, taskId: string) {
+        if (!userId || !taskId) return;
+
+        console.log(`SyncService: Deleting task ${taskId} from cloud...`);
+
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .delete()
+                .eq('id', taskId)
+                .eq('user_id', userId); // Ensure user owns the task
+
+            if (error) throw error;
+            console.log('SyncService: Deletion successful');
+        } catch (error) {
+            console.error('SyncService: Deletion failed', error);
+            // We don't throw here to avoid blocking UI, but we log it.
+            // A robust system might queue this for retry.
+        }
+    },
+
     async pullCloudChanges(userId: string): Promise<LifeTask[]> {
         if (!userId) return [];
 

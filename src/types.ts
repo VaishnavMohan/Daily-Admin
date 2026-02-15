@@ -45,7 +45,10 @@ export interface LifeTask {
 }
 
 export interface User {
+    id?: string;
     name: string;
+    email?: string;
+    avatar?: string;
     totalDue: number;
     currency: string;
 }
