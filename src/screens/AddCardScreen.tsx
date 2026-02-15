@@ -1,11 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, TextInput, FlatList, Dimensions, StatusBar, KeyboardAvoidingView, LayoutAnimation, UIManager } from 'react-native';
-import Animated, { FadeInDown, FadeOut, useAnimatedStyle, useSharedValue, withTiming, withSpring } from 'react-native-reanimated';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, TextInput, FlatList, Dimensions, StatusBar, KeyboardAvoidingView } from 'react-native';
+import Animated, { FadeInDown, FadeOut, useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,8 +58,23 @@ export const AddCardScreen = ({ navigation, route }: any) => {
 
     const currentCategory = CATEGORIES.find(c => c.id === selectedCategory) || CATEGORIES[0];
 
+    const subInputHeight = useSharedValue(1);
+    const subInputOpacity = useSharedValue(1);
+    const timingConfig = { duration: 280, easing: Easing.bezier(0.25, 0.1, 0.25, 1) };
+
+    const subInputAnimStyle = useAnimatedStyle(() => ({
+        maxHeight: subInputHeight.value * 90,
+        opacity: subInputOpacity.value,
+        overflow: 'hidden' as const,
+    }));
+
+    useEffect(() => {
+        const needsSubInput = selectedCategory === 'finance' || selectedCategory === 'utility' || selectedCategory === 'housing';
+        subInputHeight.value = withTiming(needsSubInput ? 1 : 0, timingConfig);
+        subInputOpacity.value = withTiming(needsSubInput ? 1 : 0, timingConfig);
+    }, [selectedCategory]);
+
     const handleCategorySelect = (id: TaskCategory) => {
-        LayoutAnimation.configureNext(LayoutAnimation.create(300, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
         setSelectedCategory(id);
         if (id === 'work' || id === 'academic') {
             setDurationMode('once');
@@ -172,7 +183,6 @@ export const AddCardScreen = ({ navigation, route }: any) => {
     };
 
     const accentColor = currentCategory.gradient[0];
-    const showSubInputs = selectedCategory === 'finance' || selectedCategory === 'utility' || selectedCategory === 'housing';
 
     return (
         <View style={styles.container}>
@@ -222,33 +232,36 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                             autoFocus={true}
                         />
 
-                        {selectedCategory === 'finance' && (
-                            <View style={styles.subInputWrap}>
-                                <Text style={[styles.sectionLabel, { color: accentColor }]}>LAST 4 DIGITS</Text>
-                                <TextInput
-                                    style={styles.subInput}
-                                    placeholder="8842"
-                                    placeholderTextColor="rgba(255,255,255,0.2)"
-                                    value={subtitle}
-                                    onChangeText={(t) => { if (/^\d*$/.test(t) && t.length <= 4) setSubtitle(t); }}
-                                    keyboardType="numeric"
-                                    maxLength={4}
-                                />
-                            </View>
-                        )}
-                        {(selectedCategory === 'utility' || selectedCategory === 'housing') && (
-                            <View style={styles.subInputWrap}>
-                                <Text style={[styles.sectionLabel, { color: accentColor }]}>AMOUNT (₹)</Text>
-                                <TextInput
-                                    style={styles.subInput}
-                                    placeholder="0.00"
-                                    placeholderTextColor="rgba(255,255,255,0.2)"
-                                    value={amount}
-                                    onChangeText={setAmount}
-                                    keyboardType="numeric"
-                                />
-                            </View>
-                        )}
+                        <Animated.View style={subInputAnimStyle}>
+                            {selectedCategory === 'finance' ? (
+                                <View style={styles.subInputWrap}>
+                                    <Text style={[styles.sectionLabel, { color: accentColor }]}>LAST 4 DIGITS</Text>
+                                    <TextInput
+                                        style={styles.subInput}
+                                        placeholder="8842"
+                                        placeholderTextColor="rgba(255,255,255,0.2)"
+                                        value={subtitle}
+                                        onChangeText={(t) => { if (/^\d*$/.test(t) && t.length <= 4) setSubtitle(t); }}
+                                        keyboardType="numeric"
+                                        maxLength={4}
+                                    />
+                                </View>
+                            ) : (selectedCategory === 'utility' || selectedCategory === 'housing') ? (
+                                <View style={styles.subInputWrap}>
+                                    <Text style={[styles.sectionLabel, { color: accentColor }]}>AMOUNT (₹)</Text>
+                                    <TextInput
+                                        style={styles.subInput}
+                                        placeholder="0.00"
+                                        placeholderTextColor="rgba(255,255,255,0.2)"
+                                        value={amount}
+                                        onChangeText={setAmount}
+                                        keyboardType="numeric"
+                                    />
+                                </View>
+                            ) : (
+                                <View style={styles.subInputWrap} />
+                            )}
+                        </Animated.View>
                     </View>
 
                     <View style={styles.section}>
