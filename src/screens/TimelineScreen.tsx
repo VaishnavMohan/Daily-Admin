@@ -418,7 +418,7 @@ export default function TimelineScreen({ navigation }: any) {
                     ref={flatListRef}
                     data={flatData}
                     keyExtractor={(item) => item.id}
-                    contentContainerStyle={{ paddingBottom: 100, paddingTop: 8 }}
+                    contentContainerStyle={{ paddingBottom: 140, paddingTop: 8 }}
                     renderItem={renderItem}
                     onScrollToIndexFailed={(info) => {
                         const wait = new Promise(resolve => setTimeout(resolve, 500));
@@ -452,6 +452,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(255,255,255,0.06)',
+        backgroundColor: 'rgba(15, 23, 42, 0.97)',
     },
     header: {
         paddingHorizontal: 24,

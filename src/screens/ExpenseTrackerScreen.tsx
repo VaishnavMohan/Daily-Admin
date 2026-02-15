@@ -1011,7 +1011,9 @@ const styles = StyleSheet.create({
     },
 
     // Scroll Content
-    scrollContent: {},
+    scrollContent: {
+        paddingBottom: 140,
+    },
 
     // Day Details
     dayDetails: {

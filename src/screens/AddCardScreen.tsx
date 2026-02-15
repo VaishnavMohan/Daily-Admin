@@ -1,7 +1,11 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, TextInput, FlatList, Dimensions, StatusBar, KeyboardAvoidingView } from 'react-native';
-import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, TextInput, FlatList, Dimensions, StatusBar, KeyboardAvoidingView, LayoutAnimation, UIManager } from 'react-native';
+import Animated, { FadeInDown, FadeOut, useAnimatedStyle, useSharedValue, withTiming, withSpring } from 'react-native-reanimated';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,6 +63,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
     const currentCategory = CATEGORIES.find(c => c.id === selectedCategory) || CATEGORIES[0];
 
     const handleCategorySelect = (id: TaskCategory) => {
+        LayoutAnimation.configureNext(LayoutAnimation.create(300, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
         setSelectedCategory(id);
         if (id === 'work' || id === 'academic') {
             setDurationMode('once');
@@ -167,6 +172,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
     };
 
     const accentColor = currentCategory.gradient[0];
+    const showSubInputs = selectedCategory === 'finance' || selectedCategory === 'utility' || selectedCategory === 'housing';
 
     return (
         <View style={styles.container}>
@@ -204,7 +210,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
                 >
-                    <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.inputSection}>
+                    <View style={styles.inputSection}>
                         <Text style={[styles.sectionLabel, { color: accentColor }]}>WHAT</Text>
                         <TextInput
                             style={styles.mainInput}
@@ -243,9 +249,9 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                 />
                             </View>
                         )}
-                    </Animated.View>
+                    </View>
 
-                    <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.section}>
+                    <View style={styles.section}>
                         <Text style={[styles.sectionLabel, { color: accentColor }]}>CATEGORY</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
                             {CATEGORIES.map(cat => {
@@ -268,9 +274,9 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                 );
                             })}
                         </ScrollView>
-                    </Animated.View>
+                    </View>
 
-                    <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.section}>
+                    <View style={styles.section}>
                         <Text style={[styles.sectionLabel, { color: accentColor }]}>DUE DAY</Text>
                         <FlatList
                             ref={dateListRef}
@@ -301,9 +307,9 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                 );
                             }}
                         />
-                    </Animated.View>
+                    </View>
 
-                    <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.section}>
+                    <View style={styles.section}>
                         <Text style={[styles.sectionLabel, { color: accentColor }]}>FREQUENCY</Text>
                         <View style={styles.freqRow}>
                             {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((freq) => {
@@ -378,7 +384,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                 </View>
                             )}
                         </View>
-                    </Animated.View>
+                    </View>
 
                     <View style={{ height: 120 }} />
                 </ScrollView>
