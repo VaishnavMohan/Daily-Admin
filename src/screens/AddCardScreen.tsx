@@ -1,17 +1,16 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, TextInput, FlatList, Dimensions, StatusBar, KeyboardAvoidingView } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
-import { BlurView } from 'expo-blur'; // Added BlurView, though not used in the provided styles
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../constants/Colors';
 import { StorageService } from '../services/StorageService';
 import { NotificationService } from '../services/NotificationService';
 import { TaskCategory, LifeTask } from '../types';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface CategoryOption {
     id: TaskCategory;
@@ -33,7 +32,7 @@ const CATEGORIES: CategoryOption[] = [
 ];
 
 export const AddCardScreen = ({ navigation, route }: any) => {
-    // State
+    const insets = useSafeAreaInsets();
     const preselectedCategory = route?.params?.preselectedCategory;
     const [selectedCategory, setSelectedCategory] = useState<TaskCategory>(preselectedCategory || 'finance');
     const [title, setTitle] = useState('');
@@ -42,12 +41,10 @@ export const AddCardScreen = ({ navigation, route }: any) => {
     const [selectedDay, setSelectedDay] = useState<number | null>(null);
     const dateListRef = useRef<any>(null);
 
-    // Duration State
     const [durationMode, setDurationMode] = useState<'indefinite' | 'fixed' | 'once'>('indefinite');
     const [durationMonths, setDurationMonths] = useState(3);
     const [recurrenceFreq, setRecurrenceFreq] = useState<'once' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
 
-    // Auto select today's date
     useEffect(() => {
         const today = new Date();
         const todayDate = today.getDate();
@@ -62,10 +59,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
     const currentCategory = CATEGORIES.find(c => c.id === selectedCategory) || CATEGORIES[0];
 
     const handleCategorySelect = (id: TaskCategory) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setSelectedCategory(id);
-
-        // Smart defaults
         if (id === 'work' || id === 'academic') {
             setDurationMode('once');
             setRecurrenceFreq('weekly');
@@ -75,7 +69,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
         } else if (id === 'gym') {
             setDurationMode('indefinite');
             setRecurrenceFreq('weekly');
-        } else { // Default for finance, housing, utility, other
+        } else {
             setDurationMode('indefinite');
             setRecurrenceFreq('monthly');
         }
@@ -117,7 +111,6 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                 recurrenceEndDate = endDate.toISOString().split('T')[0];
             }
 
-            // Format as YYYY-MM-DD using local time components to avoid timezone shift
             const formatDate = (date: Date) => {
                 const y = date.getFullYear();
                 const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -129,7 +122,6 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                 ? formatDate(today)
                 : formatDate(adjustedFinalDate);
 
-            // Determine type based on category
             let autoType: 'bill' | 'checklist' = 'checklist';
             if (['finance', 'housing', 'utility', 'medicine'].includes(selectedCategory)) {
                 autoType = 'bill';
@@ -155,14 +147,12 @@ export const AddCardScreen = ({ navigation, route }: any) => {
             const settings = await StorageService.getSettings();
             await NotificationService.scheduleCardReminders(newTask.title, newTask.subtitle || 'Task Due', new Date(taskDueDate), settings, recurrence, selectedCategory);
 
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             navigation.goBack();
         } catch (error) {
             Alert.alert("Error", "Could not save task.");
         }
     };
 
-    // Metadata for placeholders
     const getPlaceholder = (cat: TaskCategory) => {
         switch (cat) {
             case 'finance': return 'Credit Card Name';
@@ -176,95 +166,88 @@ export const AddCardScreen = ({ navigation, route }: any) => {
         }
     };
 
+    const accentColor = currentCategory.gradient[0];
+
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
-
-            {/* Background Gradient Mesh */}
             <LinearGradient
-                colors={['#000000', '#121212']}
+                colors={Colors.dark.gradients.AppBackground as any}
                 style={StyleSheet.absoluteFill}
             />
-            <Animated.View
-                layout={LinearTransition.springify()}
-                style={[styles.glowMesh]}
-            >
-                <LinearGradient
-                    colors={currentCategory.gradient as any}
-                    style={StyleSheet.absoluteFill}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                />
-            </Animated.View>
+
+            <View style={[styles.accentGlow, { backgroundColor: accentColor }]} />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
             >
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
-                        <MaterialCommunityIcons name="close" size={24} color="#fff" />
+                <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn} activeOpacity={0.7}>
+                        <MaterialCommunityIcons name="close" size={22} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>New Task</Text>
-                    <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-                        <Text style={[styles.saveText, { color: currentCategory.gradient[0] }]}>Save</Text>
+                    <TouchableOpacity onPress={handleSave} activeOpacity={0.7}>
+                        <LinearGradient
+                            colors={currentCategory.gradient as any}
+                            style={styles.saveBtn}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                        >
+                            <Text style={styles.saveText}>Save</Text>
+                        </LinearGradient>
                     </TouchableOpacity>
                 </View>
 
                 <ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
                 >
-                    {/* 1. Main Input Section */}
-                    <View style={styles.mainInputSection}>
-                        <Animated.View layout={LinearTransition.springify()}>
-                            <Text style={styles.label}>WHAT</Text>
-                            <TextInput
-                                style={styles.largeInput}
-                                placeholder={getPlaceholder(selectedCategory)}
-                                placeholderTextColor="rgba(255,255,255,0.3)"
-                                value={title}
-                                onChangeText={setTitle}
-                                selectionColor={currentCategory.gradient[0]}
-                                autoFocus={true}
-                            />
-                        </Animated.View>
+                    <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.inputSection}>
+                        <Text style={[styles.sectionLabel, { color: accentColor }]}>WHAT</Text>
+                        <TextInput
+                            style={styles.mainInput}
+                            placeholder={getPlaceholder(selectedCategory)}
+                            placeholderTextColor="rgba(255,255,255,0.2)"
+                            value={title}
+                            onChangeText={setTitle}
+                            selectionColor={accentColor}
+                            autoFocus={true}
+                        />
 
-                        {/* Contextual Inputs */}
                         {selectedCategory === 'finance' && (
-                            <Animated.View entering={FadeInDown} exiting={FadeOut} style={styles.marginTop}>
-                                <Text style={styles.label}>LAST 4 DIGITS</Text>
+                            <View style={styles.subInputWrap}>
+                                <Text style={[styles.sectionLabel, { color: accentColor }]}>LAST 4 DIGITS</Text>
                                 <TextInput
-                                    style={styles.mediumInput}
+                                    style={styles.subInput}
                                     placeholder="8842"
-                                    placeholderTextColor="rgba(255,255,255,0.3)"
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
                                     value={subtitle}
                                     onChangeText={(t) => { if (/^\d*$/.test(t) && t.length <= 4) setSubtitle(t); }}
                                     keyboardType="numeric"
                                     maxLength={4}
                                 />
-                            </Animated.View>
+                            </View>
                         )}
                         {(selectedCategory === 'utility' || selectedCategory === 'housing') && (
-                            <Animated.View entering={FadeInDown} exiting={FadeOut} style={styles.marginTop}>
-                                <Text style={styles.label}>AMOUNT (₹)</Text>
+                            <View style={styles.subInputWrap}>
+                                <Text style={[styles.sectionLabel, { color: accentColor }]}>AMOUNT (₹)</Text>
                                 <TextInput
-                                    style={styles.mediumInput}
+                                    style={styles.subInput}
                                     placeholder="0.00"
-                                    placeholderTextColor="rgba(255,255,255,0.3)"
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
                                     value={amount}
                                     onChangeText={setAmount}
                                     keyboardType="numeric"
                                 />
-                            </Animated.View>
+                            </View>
                         )}
-                    </View>
+                    </Animated.View>
 
-                    {/* 2. Category Selector */}
-                    <View style={styles.section}>
-                        <Text style={styles.label}>CATEGORY</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+                    <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.section}>
+                        <Text style={[styles.sectionLabel, { color: accentColor }]}>CATEGORY</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
                             {CATEGORIES.map(cat => {
                                 const isSelected = selectedCategory === cat.id;
                                 return (
@@ -272,150 +255,132 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                         key={cat.id}
                                         onPress={() => handleCategorySelect(cat.id)}
                                         activeOpacity={0.7}
+                                        style={[
+                                            styles.categoryChip,
+                                            isSelected && { borderColor: cat.gradient[0], backgroundColor: `${cat.gradient[0]}15` }
+                                        ]}
                                     >
-                                        <Animated.View
-                                            style={[
-                                                styles.categoryPill,
-                                                isSelected && { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: cat.gradient[0] }
-                                            ]}
-                                            layout={LinearTransition}
-                                        >
-                                            <LinearGradient
-                                                colors={isSelected ? cat.gradient as any : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.05)']}
-                                                style={styles.iconCircle}
-                                            >
-                                                <MaterialCommunityIcons name={cat.icon as any} size={18} color={isSelected ? '#fff' : '#8E8E93'} />
-                                            </LinearGradient>
-                                            {isSelected && (
-                                                <Animated.Text entering={FadeIn.duration(200)} style={styles.categoryName}>
-                                                    {cat.label}
-                                                </Animated.Text>
-                                            )}
-                                        </Animated.View>
+                                        <View style={[styles.catIconWrap, { backgroundColor: isSelected ? cat.gradient[0] : 'rgba(255,255,255,0.06)' }]}>
+                                            <MaterialCommunityIcons name={cat.icon as any} size={16} color={isSelected ? '#fff' : Colors.dark.textTertiary} />
+                                        </View>
+                                        <Text style={[styles.catLabel, isSelected && { color: '#fff', fontWeight: '600' }]}>{cat.label}</Text>
                                     </TouchableOpacity>
                                 );
                             })}
                         </ScrollView>
-                    </View>
+                    </Animated.View>
 
-                    {/* 3. Date Selection */}
-                    <View style={styles.section}>
-                        <Text style={styles.label}>DUE DAY</Text>
+                    <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.section}>
+                        <Text style={[styles.sectionLabel, { color: accentColor }]}>DUE DAY</Text>
                         <FlatList
                             ref={dateListRef}
                             horizontal
                             data={Array.from({ length: 31 }, (_, i) => i + 1)}
                             keyExtractor={item => item.toString()}
                             showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={{ paddingHorizontal: 0, gap: 12 }}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        Haptics.selectionAsync();
-                                        setSelectedDay(item);
-                                    }}
-                                    style={[
-                                        styles.dateBox,
-                                        selectedDay === item && { backgroundColor: currentCategory.gradient[0], borderColor: currentCategory.gradient[0] }
-                                    ]}
-                                >
-                                    <Text style={[styles.dateText, selectedDay === item && { color: '#fff', fontWeight: 'bold' }]}>
-                                        {item}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-                        />
-                    </View>
-
-                    {/* 4. Duration & Frequency */}
-                    <View style={styles.section}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-                            <Text style={styles.label}>FREQUENCY</Text>
-                        </View>
-
-                        <View style={styles.segmentContainer}>
-                            {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((freq) => (
-                                <TouchableOpacity
-                                    key={freq}
-                                    style={[
-                                        styles.segmentBtn,
-                                        recurrenceFreq === freq && { backgroundColor: 'rgba(255,255,255,0.1)' }
-                                    ]}
-                                    onPress={() => {
-                                        setRecurrenceFreq(freq);
-                                        // Auto-adjust duration mode for daily/weekly to indefinite
-                                        if (freq === 'daily' || freq === 'weekly') {
-                                            setDurationMode('indefinite');
-                                        } else if (durationMode === 'indefinite') {
-                                            // If it was indefinite and now monthly/yearly, keep it indefinite
-                                            setDurationMode('indefinite');
-                                        } else {
-                                            // Otherwise, default to fixed for monthly/yearly
-                                            setDurationMode('fixed');
-                                        }
-                                    }}
-                                >
-                                    <Text style={[
-                                        styles.segmentText,
-                                        recurrenceFreq === freq && { color: currentCategory.gradient[0], fontWeight: 'bold' }
-                                    ]}>
-                                        {freq.charAt(0).toUpperCase() + freq.slice(1)}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <View style={{ marginTop: 24 }}>
-                            <Text style={styles.label}>DURATION</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-                                {(['indefinite', 'once', 'fixed'] as const).map((mode) => (
+                            contentContainerStyle={{ paddingHorizontal: 0, gap: 8 }}
+                            renderItem={({ item }) => {
+                                const isToday = item === new Date().getDate();
+                                const isActive = selectedDay === item;
+                                return (
                                     <TouchableOpacity
-                                        key={mode}
-                                        style={[
-                                            styles.modePill,
-                                            durationMode === mode && { backgroundColor: currentCategory.gradient[0], borderColor: currentCategory.gradient[0] }
-                                        ]}
-                                        onPress={() => setDurationMode(mode)}
-                                        disabled={(recurrenceFreq === 'daily' || recurrenceFreq === 'weekly') && mode !== 'indefinite'} // Disable for daily/weekly if not indefinite
+                                        onPress={() => setSelectedDay(item)}
+                                        style={[styles.dateChip, isActive && { borderColor: accentColor }]}
                                     >
-                                        <Text style={[
-                                            styles.modeText,
-                                            durationMode === mode && { color: '#fff' },
-                                            ((recurrenceFreq === 'daily' || recurrenceFreq === 'weekly') && mode !== 'indefinite') && { opacity: 0.5 }
-                                        ]}>
-                                            {mode === 'indefinite' ? '∞ Forever' : mode === 'once' ? 'Once' : 'Custom'}
+                                        {isActive ? (
+                                            <LinearGradient
+                                                colors={currentCategory.gradient as any}
+                                                style={[StyleSheet.absoluteFill, { borderRadius: 12 }]}
+                                            />
+                                        ) : null}
+                                        <Text style={[styles.dateNum, isActive && { color: '#fff', fontWeight: '700' }]}>
+                                            {item}
+                                        </Text>
+                                        {isToday && !isActive && <View style={[styles.todayDot, { backgroundColor: accentColor }]} />}
+                                    </TouchableOpacity>
+                                );
+                            }}
+                        />
+                    </Animated.View>
+
+                    <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.section}>
+                        <Text style={[styles.sectionLabel, { color: accentColor }]}>FREQUENCY</Text>
+                        <View style={styles.freqRow}>
+                            {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((freq) => {
+                                const isActive = recurrenceFreq === freq;
+                                return (
+                                    <TouchableOpacity
+                                        key={freq}
+                                        style={[styles.freqChip, isActive && { borderColor: accentColor }]}
+                                        onPress={() => {
+                                            setRecurrenceFreq(freq);
+                                            if (freq === 'daily' || freq === 'weekly') {
+                                                setDurationMode('indefinite');
+                                            }
+                                        }}
+                                    >
+                                        {isActive ? (
+                                            <LinearGradient
+                                                colors={currentCategory.gradient as any}
+                                                style={[StyleSheet.absoluteFill, { borderRadius: 12 }]}
+                                            />
+                                        ) : null}
+                                        <Text style={[styles.freqText, isActive && { color: '#fff', fontWeight: '700' }]}>
+                                            {freq.charAt(0).toUpperCase() + freq.slice(1)}
                                         </Text>
                                     </TouchableOpacity>
-                                ))}
-                            </ScrollView>
+                                );
+                            })}
+                        </View>
+
+                        <View style={styles.durationSection}>
+                            <Text style={[styles.sectionLabel, { color: accentColor }]}>DURATION</Text>
+                            <View style={styles.durationRow}>
+                                {(['indefinite', 'once', 'fixed'] as const).map((mode) => {
+                                    const isActive = durationMode === mode;
+                                    const isDisabled = (recurrenceFreq === 'daily' || recurrenceFreq === 'weekly') && mode !== 'indefinite';
+                                    return (
+                                        <TouchableOpacity
+                                            key={mode}
+                                            style={[
+                                                styles.durationChip,
+                                                isActive && { borderColor: accentColor, backgroundColor: `${accentColor}20` },
+                                                isDisabled && { opacity: 0.3 }
+                                            ]}
+                                            onPress={() => setDurationMode(mode)}
+                                            disabled={isDisabled}
+                                        >
+                                            <Text style={[styles.durationText, isActive && { color: accentColor, fontWeight: '700' }]}>
+                                                {mode === 'indefinite' ? 'Forever' : mode === 'once' ? 'Once' : 'Custom'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
                             {durationMode === 'fixed' && (
-                                <Animated.View
-                                    style={styles.counterRow}
-                                    entering={FadeIn}
-                                    exiting={FadeOut}
-                                >
-                                    <Text style={styles.counterLabel}>Duration</Text>
+                                <View style={styles.stepperRow}>
+                                    <Text style={styles.stepperLabel}>Duration</Text>
                                     <View style={styles.stepper}>
                                         <TouchableOpacity
                                             style={styles.stepBtn}
                                             onPress={() => setDurationMonths(Math.max(1, durationMonths - 1))}
                                         >
-                                            <MaterialCommunityIcons name="minus" size={18} color="rgba(255,255,255,0.6)" />
+                                            <MaterialCommunityIcons name="minus" size={16} color={Colors.dark.textSecondary} />
                                         </TouchableOpacity>
                                         <Text style={styles.stepValue}>{durationMonths} mo</Text>
                                         <TouchableOpacity
                                             style={styles.stepBtn}
                                             onPress={() => setDurationMonths(Math.min(24, durationMonths + 1))}
                                         >
-                                            <MaterialCommunityIcons name="plus" size={18} color="rgba(255,255,255,0.6)" />
+                                            <MaterialCommunityIcons name="plus" size={16} color={Colors.dark.textSecondary} />
                                         </TouchableOpacity>
                                     </View>
-                                </Animated.View>
+                                </View>
                             )}
                         </View>
-                    </View>
+                    </Animated.View>
 
-                    <View style={{ height: 100 }} />
+                    <View style={{ height: 120 }} />
                 </ScrollView>
             </KeyboardAvoidingView>
         </View>
@@ -425,191 +390,213 @@ export const AddCardScreen = ({ navigation, route }: any) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: Colors.dark.background,
     },
-    glowMesh: {
+    accentGlow: {
         position: 'absolute',
-        top: -100,
-        left: -50,
-        right: -50,
-        height: 400,
-        borderRadius: 200,
-        transform: [{ scaleX: 2 }],
-        opacity: 0.3,
+        top: -80,
+        left: '10%',
+        right: '10%',
+        height: 200,
+        borderRadius: 100,
+        opacity: 0.08,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingTop: Platform.OS === 'ios' ? 60 : 40,
-        paddingBottom: 20,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.06)',
     },
     headerTitle: {
         color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: '700',
+        letterSpacing: -0.3,
     },
-    iconButton: {
-        padding: 8,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 20,
+    closeBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
-    saveButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 20,
+    saveBtn: {
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 14,
     },
     saveText: {
-        fontWeight: 'bold',
+        color: '#fff',
+        fontWeight: '700',
         fontSize: 14,
     },
     scrollContent: {
-        paddingHorizontal: 24,
+        paddingHorizontal: 20,
+        paddingTop: 8,
     },
-    // Input Section
-    mainInputSection: {
-        marginVertical: 20,
+    inputSection: {
+        marginTop: 20,
+        marginBottom: 8,
     },
-    label: {
-        color: 'rgba(255,255,255,0.4)',
+    sectionLabel: {
         fontSize: 11,
         fontWeight: '700',
-        letterSpacing: 1,
+        letterSpacing: 1.2,
         marginBottom: 10,
-        textTransform: 'uppercase',
     },
-    largeInput: {
-        fontSize: 34,
-        fontWeight: '700',
+    mainInput: {
+        fontSize: 28,
+        fontWeight: '300',
         color: '#fff',
-        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
+        paddingBottom: 12,
+        paddingTop: 4,
     },
-    mediumInput: {
-        fontSize: 24,
-        fontWeight: '600',
-        color: '#fff',
-        paddingVertical: 8,
-    },
-    marginTop: {
+    subInputWrap: {
         marginTop: 24,
     },
-    // Sections
+    subInput: {
+        fontSize: 20,
+        fontWeight: '400',
+        color: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
+        paddingBottom: 10,
+    },
     section: {
-        marginBottom: 32,
+        marginTop: 28,
     },
-    categoryRow: {
-        gap: 12,
+    categoryScroll: {
+        gap: 10,
+        paddingRight: 20,
     },
-    categoryPill: {
+    categoryChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 6,
-        paddingRight: 16,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        borderRadius: 24,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 14,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(255,255,255,0.03)',
         gap: 8,
-        height: 48,
     },
-    iconCircle: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+    catIconWrap: {
+        width: 30,
+        height: 30,
+        borderRadius: 10,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    categoryName: {
-        color: '#fff',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    // Date
-    dateBox: {
-        width: 50,
-        height: 64,
-        borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
-    },
-    dateText: {
-        color: 'rgba(255,255,255,0.8)',
-        fontSize: 18,
+    catLabel: {
+        color: Colors.dark.textSecondary,
+        fontSize: 13,
         fontWeight: '500',
     },
-    // Segments
-    segmentContainer: {
-        flexDirection: 'row',
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        borderRadius: 16,
-        padding: 4,
+    dateChip: {
+        width: 44,
+        height: 52,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        overflow: 'hidden',
     },
-    segmentBtn: {
+    dateNum: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: Colors.dark.textSecondary,
+    },
+    todayDot: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        marginTop: 4,
+    },
+    freqRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    freqChip: {
         flex: 1,
         paddingVertical: 12,
-        alignItems: 'center',
         borderRadius: 12,
-    },
-    segmentText: {
-        color: 'rgba(255,255,255,0.6)',
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    modePill: {
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        overflow: 'hidden',
     },
-    modeText: {
-        color: 'rgba(255,255,255,0.6)',
-        fontWeight: '600',
+    freqText: {
+        color: Colors.dark.textSecondary,
         fontSize: 13,
+        fontWeight: '500',
     },
-    counterRow: {
+    durationSection: {
+        marginTop: 24,
+    },
+    durationRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    durationChip: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 12,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+    },
+    durationText: {
+        color: Colors.dark.textSecondary,
+        fontSize: 13,
+        fontWeight: '500',
+    },
+    stepperRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 16,
-        paddingHorizontal: 12,
-        marginTop: 12,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        borderRadius: 16,
+        marginTop: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
-    counterLabel: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#fff',
+    stepperLabel: {
+        color: Colors.dark.textSecondary,
+        fontSize: 14,
+        fontWeight: '500',
     },
     stepper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 12,
-        padding: 4,
+        gap: 12,
     },
     stepBtn: {
         width: 32,
         height: 32,
+        borderRadius: 10,
+        backgroundColor: 'rgba(255,255,255,0.08)',
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 8,
-        backgroundColor: 'rgba(255,255,255,0.05)',
     },
     stepValue: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: '700',
-        marginHorizontal: 8,
+        color: '#fff',
         minWidth: 50,
         textAlign: 'center',
-        color: '#fff',
     },
 });
-

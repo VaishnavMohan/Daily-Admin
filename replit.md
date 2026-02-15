@@ -13,6 +13,10 @@ A React Native / Expo application for personal life management. Built with Expo 
   - Replaced SafeAreaView with useSafeAreaInsets across all main screens
   - Button component uses sky blue gradient (#38BDF8), glass-morphism effects throughout
   - Entrance animations with react-native-reanimated FadeInDown on key screens
+- 2026-02-15: Fixed AddCardScreen - rebuilt with proper dark theme, safe area insets, simplified animations for web compatibility
+- 2026-02-15: Smart + button - context-aware (adds bill on most tabs, adds expense on Expenses tab with green icon)
+- 2026-02-15: Timeline fix - no longer shows future month (March) tasks
+- 2026-02-15: Removed duplicate + from Expenses header, replaced with export button
 
 ## Project Architecture
 - **Framework**: Expo SDK 52 with React Native
