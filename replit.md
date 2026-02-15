@@ -17,6 +17,9 @@ A React Native / Expo application for personal life management. Built with Expo 
 - 2026-02-15: Smart + button - context-aware (adds bill on most tabs, adds expense on Expenses tab with green icon)
 - 2026-02-15: Timeline fix - no longer shows future month (March) tasks
 - 2026-02-15: Removed duplicate + from Expenses header, replaced with export button
+- 2026-02-15: Fixed AddCardScreen blinking/shivering by removing re-triggering entrance animations, added LayoutAnimation for smooth category transitions
+- 2026-02-15: Fixed header scroll-through on Dashboard and Timeline (solid background on BlurView headers)
+- 2026-02-15: Fixed bottom tab bar overlap on Expenses and Timeline (increased scroll content paddingBottom to 140)
 
 ## Project Architecture
 - **Framework**: Expo SDK 52 with React Native
