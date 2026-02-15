@@ -97,8 +97,9 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
     // Auto-scroll to today when date strip loads/changes
     useEffect(() => {
         if (dateListRef.current && dateStrip.length > 0) {
+            const fmt = (dt: Date) => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
             const todayIndex = dateStrip.findIndex(d =>
-                d.toISOString().split('T')[0] === selectedDate.toISOString().split('T')[0]
+                fmt(d) === fmt(selectedDate)
             );
             if (todayIndex !== -1) {
                 setTimeout(() => {
@@ -286,7 +287,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
     // For now, let's keep the list as "Day Details" (Calendar View) but update the "Total Spent" card to reflect the filter.
 
     // We still need 'dayTotal' for the list header if we keep it.
-    const dayExpenses = expenses.filter(e => e.dueDate === selectedDate.toISOString().split('T')[0]);
+    const dayExpenses = expenses.filter(e => e.dueDate === formatLocalDate(selectedDate));
     const dayTotal = dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
 
@@ -525,12 +526,9 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                         }}
                         keyExtractor={(item) => item.toISOString()}
                         renderItem={({ item: date }) => {
-                            const toLocalISO = (d: Date) => {
-                                const offset = d.getTimezoneOffset() * 60000;
-                                return new Date(d.getTime() - offset).toISOString().split('T')[0];
-                            };
-                            const dStr = toLocalISO(date);
-                            const selectedStr = toLocalISO(selectedDate);
+                            const toLocalStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                            const dStr = toLocalStr(date);
+                            const selectedStr = toLocalStr(selectedDate);
                             const isSelected = dStr === selectedStr;
                             const hasData = expenses.some(e => e.dueDate === dStr);
 
@@ -582,7 +580,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                     <View style={[styles.dayDetails, { minHeight: 500 }]}>
                         <View style={styles.dayHeader}>
                             <Text style={styles.dayHeaderTitle}>
-                                {selectedDateStr === new Date().toISOString().split('T')[0] ? 'Today' : selectedDate.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric' })}
+                                {selectedDateStr === formatLocalDate(new Date()) ? 'Today' : selectedDate.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric' })}
                             </Text>
                             <Text style={styles.dayHeaderTotal}>{dayTotal > 0 ? `₹${dayTotal.toLocaleString()}` : ''}</Text>
                         </View>
