@@ -9,6 +9,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '../constants/Colors';
 import { StorageService } from '../services/StorageService';
 import { LifeTask, TaskCategory } from '../types';
+import { useTheme } from '../context/ThemeContext';
 
 interface TimelineMarker {
     id: string;
@@ -26,6 +27,7 @@ type TimelineItem = LifeTask | TimelineMarker | TimelineHeader;
 
 export default function TimelineScreen({ navigation }: any) {
     const insets = useSafeAreaInsets();
+    const { colors, theme } = useTheme();
     const [flatData, setFlatData] = useState<TimelineItem[]>([]);
     const [allData, setAllData] = useState<TimelineItem[]>([]);
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
@@ -256,8 +258,8 @@ export default function TimelineScreen({ navigation }: any) {
 
     const renderHeaderItem = (title: string, index: number) => (
         <Animated.View entering={FadeInDown.duration(400).delay(Math.min(index * 50, 300))} style={styles.monthHeader}>
-            <View style={styles.monthHeaderAccent} />
-            <Text style={styles.monthTitle}>{title}</Text>
+            <View style={[styles.monthHeaderAccent, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.monthTitle, { color: colors.textSecondary }]}>{title}</Text>
         </Animated.View>
     );
 
@@ -280,21 +282,22 @@ export default function TimelineScreen({ navigation }: any) {
         return (
             <Animated.View entering={FadeInDown.duration(400).delay(Math.min(index * 60, 400))} style={styles.timelineItem}>
                 <View style={[styles.dateColumn, isCompleted && { opacity: 0.4 }]}>
-                    <Text style={styles.dayText}>{day}</Text>
-                    <Text style={styles.dowText}>{dow}</Text>
+                    <Text style={[styles.dayText, { color: colors.text }]}>{day}</Text>
+                    <Text style={[styles.dowText, { color: colors.textTertiary }]}>{dow}</Text>
                 </View>
 
                 <View style={styles.lineWrapper}>
                     <View style={[
                         styles.dotOuter,
-                        isCompleted ? { borderColor: Colors.dark.success }
-                            : isUrgent ? { borderColor: Colors.dark.danger }
+                        { backgroundColor: colors.background },
+                        isCompleted ? { borderColor: colors.success }
+                            : isUrgent ? { borderColor: colors.danger }
                                 : { borderColor: catColor }
                     ]}>
                         <View style={[
                             styles.dotInner,
-                            isCompleted ? { backgroundColor: Colors.dark.success }
-                                : isUrgent ? { backgroundColor: Colors.dark.danger }
+                            isCompleted ? { backgroundColor: colors.success }
+                                : isUrgent ? { backgroundColor: colors.danger }
                                     : { backgroundColor: catColor }
                         ]} />
                     </View>
@@ -306,10 +309,10 @@ export default function TimelineScreen({ navigation }: any) {
                     activeOpacity={0.7}
                     onPress={() => navigation.navigate('CategoryDetail', { category: item.category })}
                 >
-                    <View style={styles.cardOuter}>
+                    <View style={[styles.cardOuter, { borderColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)' }]}>
                         <View style={[styles.cardAccentStripe, { backgroundColor: catColor }]} />
                         <LinearGradient
-                            colors={['rgba(255,255,255,0.07)', 'rgba(255,255,255,0.02)']}
+                            colors={theme === 'dark' ? ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0.02)'] : ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
                             style={styles.cardGradient}
                         >
                             <View style={styles.cardHeader}>
@@ -332,8 +335,8 @@ export default function TimelineScreen({ navigation }: any) {
                                 </TouchableOpacity>
                             </View>
 
-                            <Text style={[styles.taskTitle, isCompleted && styles.taskTitleCompleted]}>{item.title}</Text>
-                            <Text style={styles.taskSubtitle}>{item.subtitle}</Text>
+                            <Text style={[styles.taskTitle, { color: colors.text }, isCompleted && styles.taskTitleCompleted]}>{item.title}</Text>
+                            <Text style={[styles.taskSubtitle, { color: colors.textSecondary }]}>{item.subtitle}</Text>
 
                             {!isCompleted && (
                                 <View style={styles.statusRow}>
@@ -365,21 +368,21 @@ export default function TimelineScreen({ navigation }: any) {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <LinearGradient
-                colors={Colors.dark.gradients.AppBackground as unknown as string[]}
+                colors={colors.gradients.AppBackground as unknown as string[]}
                 style={StyleSheet.absoluteFill}
             />
             <View style={[styles.screenContent, { paddingTop: insets.top }]}>
-                <BlurView intensity={40} tint="dark" style={styles.headerBlur}>
+                <BlurView intensity={40} tint={theme === 'dark' ? 'dark' : 'light'} style={[styles.headerBlur, { borderBottomColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.97)' : 'rgba(248, 250, 252, 0.97)' }]}>
                     <View style={styles.header}>
                         <View style={styles.headerTopRow}>
                             <View>
-                                <Text style={styles.headerTitle}>Timeline</Text>
-                                <Text style={styles.subHeader}>Upcoming Tasks & Bills</Text>
+                                <Text style={[styles.headerTitle, { color: colors.text }]}>Timeline</Text>
+                                <Text style={[styles.subHeader, { color: colors.textSecondary }]}>Upcoming Tasks & Bills</Text>
                             </View>
-                            <View style={styles.headerIconWrap}>
-                                <MaterialCommunityIcons name="timeline-clock-outline" size={24} color={Colors.dark.primary} />
+                            <View style={[styles.headerIconWrap, { backgroundColor: `${colors.primary}18`, borderColor: `${colors.primary}25` }]}>
+                                <MaterialCommunityIcons name="timeline-clock-outline" size={24} color={colors.primary} />
                             </View>
                         </View>
 
@@ -389,6 +392,7 @@ export default function TimelineScreen({ navigation }: any) {
                                     key={filter}
                                     style={[
                                         styles.filterBtn,
+                                        { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
                                         statusFilter === filter && styles.filterBtnActive
                                     ]}
                                     onPress={() => setStatusFilter(filter)}
@@ -396,7 +400,7 @@ export default function TimelineScreen({ navigation }: any) {
                                 >
                                     {statusFilter === filter && (
                                         <LinearGradient
-                                            colors={[Colors.dark.primary, '#0EA5E9']}
+                                            colors={[colors.primary, '#0EA5E9']}
                                             start={{ x: 0, y: 0 }}
                                             end={{ x: 1, y: 1 }}
                                             style={StyleSheet.absoluteFill}
@@ -404,6 +408,7 @@ export default function TimelineScreen({ navigation }: any) {
                                     )}
                                     <Text style={[
                                         styles.filterText,
+                                        { color: colors.textSecondary },
                                         statusFilter === filter && styles.filterTextActive
                                     ]}>
                                         {filter === 'all' ? 'All' : filter === 'pending' ? 'Pending' : 'Done'}
@@ -428,9 +433,9 @@ export default function TimelineScreen({ navigation }: any) {
                     }}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <MaterialCommunityIcons name="calendar-blank-outline" size={48} color={Colors.dark.textTertiary} />
-                            <Text style={styles.emptyTitle}>No Tasks Found</Text>
-                            <Text style={styles.emptyText}>Your timeline is clear</Text>
+                            <MaterialCommunityIcons name="calendar-blank-outline" size={48} color={colors.textTertiary} />
+                            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Tasks Found</Text>
+                            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Your timeline is clear</Text>
                         </View>
                     }
                     showsVerticalScrollIndicator={false}

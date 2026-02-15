@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LifeTask, User, AppSettings } from '../types';
+import { LifeTask, User, AppSettings, ExpenseBudget, TaskCategory } from '../types';
 import { MOCK_TASKS, MOCK_USER } from '../constants/MockData';
 
 const TASKS_KEY = '@life_admin_tasks';
 const USER_KEY = '@life_admin_user';
 const SETTINGS_KEY = '@life_admin_settings';
+const BUDGETS_KEY = '@life_admin_budgets';
 
 export const StorageService = {
     // --- TASKS ---
@@ -179,6 +180,24 @@ export const StorageService = {
             await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
         } catch (error) {
             console.error('Error saving settings:', error);
+        }
+    },
+
+    async getBudgets(): Promise<ExpenseBudget[]> {
+        try {
+            const json = await AsyncStorage.getItem(BUDGETS_KEY);
+            return json ? JSON.parse(json) : [];
+        } catch (error) {
+            console.error('Error getting budgets:', error);
+            return [];
+        }
+    },
+
+    async saveBudgets(budgets: ExpenseBudget[]): Promise<void> {
+        try {
+            await AsyncStorage.setItem(BUDGETS_KEY, JSON.stringify(budgets));
+        } catch (error) {
+            console.error('Error saving budgets:', error);
         }
     }
 };

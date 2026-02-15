@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../constants/Colors';
 import { FadeInDown } from 'react-native-reanimated';
 import Animated from 'react-native-reanimated';
+import { useTheme } from '../context/ThemeContext';
 
 const MENU_COLORS = {
     'bell-ring-outline': '#38BDF8',
@@ -17,9 +18,10 @@ const MENU_COLORS = {
 
 export const ProfileScreen = ({ navigation }: any) => {
     const insets = useSafeAreaInsets();
+    const { colors, theme } = useTheme();
 
     const MenuOption = ({ icon, label, subtitle, onPress }: any) => {
-        const tint = (MENU_COLORS as any)[icon] || Colors.dark.primary;
+        const tint = (MENU_COLORS as any)[icon] || colors.primary;
         return (
             <TouchableOpacity style={styles.menuOption} onPress={onPress} activeOpacity={0.7}>
                 <LinearGradient
@@ -32,11 +34,13 @@ export const ProfileScreen = ({ navigation }: any) => {
                     <MaterialCommunityIcons name={icon} size={22} color={tint} />
                 </View>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.menuLabel}>{label}</Text>
-                    {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
+                    <Text style={[styles.menuLabel, { color: colors.text }]}>{label}</Text>
+                    {subtitle && <Text style={[styles.menuSubtitle, { color: colors.textSecondary }]}>{subtitle}</Text>}
                 </View>
-                <View style={styles.chevronContainer}>
-                    <MaterialCommunityIcons name="chevron-right" size={20} color={Colors.dark.textTertiary} />
+                <View style={[styles.chevronContainer, {
+                    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                }]}>
+                    <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textTertiary} />
                 </View>
             </TouchableOpacity>
         );
@@ -50,9 +54,9 @@ export const ProfileScreen = ({ navigation }: any) => {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <LinearGradient
-                colors={Colors.dark.gradients.AppBackground as any}
+                colors={colors.gradients.AppBackground as any}
                 style={StyleSheet.absoluteFill}
             />
             <View style={{ flex: 1, paddingTop: insets.top }}>
@@ -60,26 +64,26 @@ export const ProfileScreen = ({ navigation }: any) => {
                     <Animated.View entering={FadeInDown.delay(50).springify()} style={styles.header}>
                         <View style={styles.avatarOuter}>
                             <LinearGradient
-                                colors={[Colors.dark.primary, '#0EA5E9', '#6366F1']}
+                                colors={[colors.primary, '#0EA5E9', '#6366F1']}
                                 style={styles.avatarGradientRing}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
                             />
-                            <View style={styles.avatarInner}>
-                                <MaterialCommunityIcons name="account" size={36} color="#fff" />
+                            <View style={[styles.avatarInner, { backgroundColor: colors.backgroundSecondary }]}>
+                                <MaterialCommunityIcons name="account" size={36} color={theme === 'dark' ? '#fff' : colors.primary} />
                             </View>
                         </View>
                         <View>
-                            <Text style={styles.userName}>User</Text>
-                            <Text style={styles.userStatus}>Life Admin Manager</Text>
+                            <Text style={[styles.userName, { color: colors.text }]}>User</Text>
+                            <Text style={[styles.userStatus, { color: colors.textSecondary }]}>Life Admin Manager</Text>
                         </View>
                     </Animated.View>
 
                     <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.section}>
-                        <Text style={styles.sectionTitle}>App Settings</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>App Settings</Text>
                         <LinearGradient
-                            colors={[Colors.dark.glass.medium, 'rgba(15, 23, 42, 0.5)']}
-                            style={styles.sectionCard}
+                            colors={[colors.glass.medium, theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.5)']}
+                            style={[styles.sectionCard, { borderColor: colors.glass.border }]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 0, y: 1 }}
                         >
@@ -92,17 +96,17 @@ export const ProfileScreen = ({ navigation }: any) => {
                             <MenuOption
                                 icon="palette-outline"
                                 label="Appearance"
-                                subtitle="Dark Mode (Default)"
-                                onPress={() => { }}
+                                subtitle={theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                                onPress={() => navigation.navigate('Settings')}
                             />
                         </LinearGradient>
                     </Animated.View>
 
                     <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.section}>
-                        <Text style={styles.sectionTitle}>Support</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Support</Text>
                         <LinearGradient
-                            colors={[Colors.dark.glass.medium, 'rgba(15, 23, 42, 0.5)']}
-                            style={styles.sectionCard}
+                            colors={[colors.glass.medium, theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.5)']}
+                            style={[styles.sectionCard, { borderColor: colors.glass.border }]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 0, y: 1 }}
                         >
@@ -122,10 +126,10 @@ export const ProfileScreen = ({ navigation }: any) => {
                     </Animated.View>
 
                     <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.section}>
-                        <Text style={styles.sectionTitle}>Data</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Data</Text>
                         <LinearGradient
-                            colors={[Colors.dark.glass.medium, 'rgba(15, 23, 42, 0.5)']}
-                            style={styles.sectionCard}
+                            colors={[colors.glass.medium, theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.5)']}
+                            style={[styles.sectionCard, { borderColor: colors.glass.border }]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 0, y: 1 }}
                         >
@@ -140,13 +144,15 @@ export const ProfileScreen = ({ navigation }: any) => {
 
                     <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.footer}>
                         <LinearGradient
-                            colors={['rgba(56, 189, 248, 0.08)', 'rgba(99, 102, 241, 0.05)']}
-                            style={styles.footerGradient}
+                            colors={[`${colors.primary}14`, theme === 'dark' ? 'rgba(99, 102, 241, 0.05)' : 'rgba(99, 102, 241, 0.03)']}
+                            style={[styles.footerGradient, {
+                                borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                            }]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                         >
-                            <Text style={styles.footerBrand}>Daily Admin</Text>
-                            <Text style={styles.footerVersion}>Version 1.0.0 • Built with ❤️</Text>
+                            <Text style={[styles.footerBrand, { color: colors.primary }]}>Daily Admin</Text>
+                            <Text style={[styles.footerVersion, { color: colors.textTertiary }]}>Version 1.0.0 • Built with ❤️</Text>
                         </LinearGradient>
                     </Animated.View>
 
@@ -159,7 +165,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.dark.background,
     },
     content: {
         padding: 24,
@@ -188,19 +193,16 @@ const styles = StyleSheet.create({
         width: 68,
         height: 68,
         borderRadius: 34,
-        backgroundColor: Colors.dark.backgroundSecondary,
         justifyContent: 'center',
         alignItems: 'center',
     },
     userName: {
         fontSize: 26,
         fontWeight: '800',
-        color: Colors.dark.text,
         letterSpacing: -0.5,
     },
     userStatus: {
         fontSize: 15,
-        color: Colors.dark.textSecondary,
         marginTop: 2,
         fontWeight: '500',
     },
@@ -210,7 +212,6 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 13,
         fontWeight: '700',
-        color: Colors.dark.textTertiary,
         marginBottom: 12,
         marginLeft: 4,
         textTransform: 'uppercase',
@@ -220,7 +221,6 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 4,
         borderWidth: 1,
-        borderColor: Colors.dark.glass.border,
         overflow: 'hidden',
     },
     menuOption: {
@@ -245,18 +245,15 @@ const styles = StyleSheet.create({
         width: 28,
         height: 28,
         borderRadius: 10,
-        backgroundColor: 'rgba(255,255,255,0.06)',
         justifyContent: 'center',
         alignItems: 'center',
     },
     menuLabel: {
         fontSize: 16,
         fontWeight: '600',
-        color: Colors.dark.text,
     },
     menuSubtitle: {
         fontSize: 13,
-        color: Colors.dark.textSecondary,
         marginTop: 2,
     },
     footer: {
@@ -269,18 +266,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: 32,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.08)',
         width: '100%',
     },
     footerBrand: {
         fontSize: 18,
         fontWeight: '800',
-        color: Colors.dark.primary,
         letterSpacing: 1,
     },
     footerVersion: {
         fontSize: 12,
-        color: Colors.dark.textTertiary,
         marginTop: 4,
         fontWeight: '500',
     },

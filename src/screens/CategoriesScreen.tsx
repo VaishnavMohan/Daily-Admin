@@ -6,6 +6,7 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '../constants/Colors';
+import { useTheme } from '../context/ThemeContext';
 import { TaskCategory } from '../types';
 
 interface CategoryOption {
@@ -30,6 +31,7 @@ import { GlassCard } from '../components/GlassCard';
 
 export default function CategoriesScreen({ navigation }: any) {
     const insets = useSafeAreaInsets();
+    const { colors, theme } = useTheme();
 
     const renderItem = ({ item, index }: { item: CategoryOption; index: number }) => (
         <Animated.View entering={FadeInDown.delay(80 * index).springify()}>
@@ -50,8 +52,8 @@ export default function CategoriesScreen({ navigation }: any) {
                             <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
                         </View>
                         <View style={styles.textContainer}>
-                            <Text style={[styles.categoryTitle, { color: Colors.dark.white }]}>{item.label}</Text>
-                            <Text style={styles.categoryDesc}>{item.description}</Text>
+                            <Text style={[styles.categoryTitle, { color: colors.text }]}>{item.label}</Text>
+                            <Text style={[styles.categoryDesc, { color: colors.textSecondary }]}>{item.description}</Text>
                         </View>
                         <View style={[styles.arrowContainer, { backgroundColor: `${item.color}15`, borderColor: `${item.color}25` }]}>
                             <MaterialCommunityIcons name="chevron-right" size={18} color={item.color} />
@@ -63,24 +65,24 @@ export default function CategoriesScreen({ navigation }: any) {
     );
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <LinearGradient
-                colors={Colors.dark.gradients.AppBackground as any}
+                colors={colors.gradients.AppBackground as any}
                 style={StyleSheet.absoluteFill}
             />
             <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-                <View style={styles.headerWrapper}>
-                    <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+                <View style={[styles.headerWrapper, { borderBottomColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}>
+                    <BlurView intensity={30} tint={theme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
                     <LinearGradient
-                        colors={['rgba(56, 189, 248, 0.08)', 'transparent']}
+                        colors={theme === 'dark' ? ['rgba(56, 189, 248, 0.08)', 'transparent'] : ['rgba(14, 165, 233, 0.05)', 'transparent']}
                         style={StyleSheet.absoluteFill}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                     />
                     <View style={styles.header}>
                         <Animated.View entering={FadeInDown.delay(50).springify()}>
-                            <Text style={styles.headerTitle}>Categories</Text>
-                            <Text style={styles.subHeader}>Manage your life areas</Text>
+                            <Text style={[styles.headerTitle, { color: colors.text }]}>Categories</Text>
+                            <Text style={[styles.subHeader, { color: colors.textSecondary }]}>Manage your life areas</Text>
                         </Animated.View>
                     </View>
                 </View>

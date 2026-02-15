@@ -1,81 +1,96 @@
 const Colors = {
     dark: {
-        // "Midnight Luxury" Theme - Eyecatching, Deep Blue, Premium
-
-        // Backgrounds: Deep Slate/Blue instead of boring black
-        background: '#0F172A', // Slate 900
-        backgroundSecondary: '#1E293B', // Slate 800
-
-        // Surfaces: Glassy & Visible
-        surface: '#1E293B', // Lighter slate
-        surfaceHighlight: '#334155', // Slate 700
+        background: '#0F172A',
+        backgroundSecondary: '#1E293B',
+        surface: '#1E293B',
+        surfaceHighlight: '#334155',
         cardBackground: '#1E293B',
-
-        // Typography: Crisp White
         text: '#FFFFFF',
-        textSecondary: '#94A3B8', // Slate 400
-        textTertiary: '#64748B', // Slate 500
+        textSecondary: '#94A3B8',
+        textTertiary: '#64748B',
         white: '#FFFFFF',
-
-        // Accents: Vibrant & Electric
-        primary: '#38BDF8', // Sky Blue - Pops against dark blue
-        accent: '#FACC15', // Yellow Gold - High contrast
-
-        // Semantic Colors
+        primary: '#38BDF8',
+        accent: '#FACC15',
         gold: '#FACC15',
-        copper: '#FB923C', // Orange
-        teal: '#2DD4BF', // Teal
-        purple: '#C084FC', // Violet
-        danger: '#F87171', // Red
-        success: '#4ADE80', // Green
-
+        copper: '#FB923C',
+        teal: '#2DD4BF',
+        purple: '#C084FC',
+        danger: '#F87171',
+        success: '#4ADE80',
         primaryDark: '#0EA5E9',
         secondary: '#334155',
-
-        // Lighting & Borders
-        borderTop: 'rgba(255,255,255,0.2)', // Sharper highlight
+        borderTop: 'rgba(255,255,255,0.2)',
         borderBot: 'rgba(0,0,0,0.6)',
         border: 'rgba(255,255,255,0.1)',
-
-        // Glass System
         glass: {
             heavy: 'rgba(15, 23, 42, 0.9)',
             medium: 'rgba(30, 41, 59, 0.7)',
             light: 'rgba(255, 255, 255, 0.1)',
             border: 'rgba(255, 255, 255, 0.15)',
         },
-
-        // Gradients: Eyecatching & Deep
         gradients: {
-            // Main Background: Rich Midnight Gradient
-            // Main Background: Rich Midnight Gradient (Mesh-like depth)
-            AppBackground: ['#0F172A', '#1E1B4B', '#020617'] as const, // Slate 900 -> Midnight Violet -> Black
-
-            // Bento Cards: Subtle Blue/Grey Gradient to pop against bg
+            AppBackground: ['#0F172A', '#1E1B4B', '#020617'] as const,
             BentoBase: ['rgba(51, 65, 85, 0.6)', 'rgba(30, 41, 59, 0.4)'],
-            BentoHighlight: ['rgba(56, 189, 248, 0.2)', 'rgba(56, 189, 248, 0.05)'], // Blue Glow
-
-            // Progress Ring
-            Progress: ['#FACC15', '#FDE047', '#EAB308'], // Gold Gradient
+            BentoHighlight: ['rgba(56, 189, 248, 0.2)', 'rgba(56, 189, 248, 0.05)'],
+            Progress: ['#FACC15', '#FDE047', '#EAB308'],
             ProgressTrack: '#334155',
-
-            // Functional
             Urgent: ['rgba(248, 113, 113, 0.2)', 'rgba(248, 113, 113, 0.05)'],
-
-            // Category Gradients (Midnight/Neon)
-            Finance: ['#0EA5E9', '#0284C7'] as const, // Sky Blue
-            Academic: ['#8B5CF6', '#7C3AED'] as const, // Violet
-            Housing: ['#10B981', '#059669'] as const, // Emerald
-            Work: ['#64748B', '#475569'] as const, // Slate
-            Utility: ['#F59E0B', '#D97706'] as const, // Amber
-            Medicine: ['#F43F5E', '#E11D48'] as const, // Rose
-            Gym: ['#84CC16', '#65A30D'] as const, // Lime
-
-            // Legacy/Compat
+            Finance: ['#0EA5E9', '#0284C7'] as const,
+            Academic: ['#8B5CF6', '#7C3AED'] as const,
+            Housing: ['#10B981', '#059669'] as const,
+            Work: ['#64748B', '#475569'] as const,
+            Utility: ['#F59E0B', '#D97706'] as const,
+            Medicine: ['#F43F5E', '#E11D48'] as const,
+            Gym: ['#84CC16', '#65A30D'] as const,
             Bento1: ['rgba(51, 65, 85, 0.6)', 'rgba(30, 41, 59, 0.4)'],
         }
     },
-    // Legacy Mappings
+    light: {
+        background: '#F8FAFC',
+        backgroundSecondary: '#F1F5F9',
+        surface: '#FFFFFF',
+        surfaceHighlight: '#E2E8F0',
+        cardBackground: '#FFFFFF',
+        text: '#0F172A',
+        textSecondary: '#64748B',
+        textTertiary: '#94A3B8',
+        white: '#FFFFFF',
+        primary: '#0EA5E9',
+        accent: '#FACC15',
+        gold: '#FACC15',
+        copper: '#FB923C',
+        teal: '#2DD4BF',
+        purple: '#C084FC',
+        danger: '#F87171',
+        success: '#4ADE80',
+        primaryDark: '#0284C7',
+        secondary: '#E2E8F0',
+        borderTop: 'rgba(0,0,0,0.08)',
+        borderBot: 'rgba(0,0,0,0.12)',
+        border: 'rgba(0,0,0,0.08)',
+        glass: {
+            heavy: 'rgba(255, 255, 255, 0.95)',
+            medium: 'rgba(255, 255, 255, 0.8)',
+            light: 'rgba(0, 0, 0, 0.04)',
+            border: 'rgba(0, 0, 0, 0.08)',
+        },
+        gradients: {
+            AppBackground: ['#F8FAFC', '#EFF6FF', '#F0F9FF'] as const,
+            BentoBase: ['rgba(226, 232, 240, 0.6)', 'rgba(241, 245, 249, 0.4)'],
+            BentoHighlight: ['rgba(14, 165, 233, 0.12)', 'rgba(14, 165, 233, 0.04)'],
+            Progress: ['#FACC15', '#FDE047', '#EAB308'],
+            ProgressTrack: '#E2E8F0',
+            Urgent: ['rgba(248, 113, 113, 0.15)', 'rgba(248, 113, 113, 0.05)'],
+            Finance: ['#0EA5E9', '#0284C7'] as const,
+            Academic: ['#8B5CF6', '#7C3AED'] as const,
+            Housing: ['#10B981', '#059669'] as const,
+            Work: ['#64748B', '#475569'] as const,
+            Utility: ['#F59E0B', '#D97706'] as const,
+            Medicine: ['#F43F5E', '#E11D48'] as const,
+            Gym: ['#84CC16', '#65A30D'] as const,
+            Bento1: ['rgba(226, 232, 240, 0.6)', 'rgba(241, 245, 249, 0.4)'],
+        }
+    },
     gradientPrimary: ['#FACC15', '#EAB308'] as const,
 };
 

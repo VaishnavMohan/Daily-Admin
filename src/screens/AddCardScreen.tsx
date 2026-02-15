@@ -6,6 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../constants/Colors';
+import { useTheme } from '../context/ThemeContext';
 import { StorageService } from '../services/StorageService';
 import { NotificationService } from '../services/NotificationService';
 import { TaskCategory, LifeTask } from '../types';
@@ -22,10 +23,10 @@ interface CategoryOption {
 
 const CATEGORIES: CategoryOption[] = [
     { id: 'finance', label: 'Finance', description: 'Credit Cards, Loans', icon: 'credit-card-chip-outline', gradient: Colors.dark.gradients.Finance },
-    { id: 'academic', label: 'Academic', description: 'Assignments, Exams', icon: 'school-outline', gradient: Colors.dark.gradients.Academic },
     { id: 'housing', label: 'Housing', description: 'Rent, Maintenance', icon: 'home-city-outline', gradient: Colors.dark.gradients.Housing },
-    { id: 'work', label: 'Work', description: 'Deadlines, Projects', icon: 'briefcase-variant-outline', gradient: Colors.dark.gradients.Work },
     { id: 'utility', label: 'Utility', description: 'Bills, Recharge', icon: 'lightning-bolt', gradient: Colors.dark.gradients.Utility },
+    { id: 'academic', label: 'Academic', description: 'Assignments, Exams', icon: 'school-outline', gradient: Colors.dark.gradients.Academic },
+    { id: 'work', label: 'Work', description: 'Deadlines, Projects', icon: 'briefcase-variant-outline', gradient: Colors.dark.gradients.Work },
     { id: 'medicine', label: 'Health', description: 'Meds, Checkups', icon: 'pill', gradient: Colors.dark.gradients.Medicine },
     { id: 'gym', label: 'Fitness', description: 'Workouts, Diet', icon: 'dumbbell', gradient: Colors.dark.gradients.Gym },
     { id: 'other', label: 'General', description: 'Notes, Chores', icon: 'checkbox-marked-circle-outline', gradient: ['#8E8E93', '#636366'] },
@@ -33,6 +34,7 @@ const CATEGORIES: CategoryOption[] = [
 
 export const AddCardScreen = ({ navigation, route }: any) => {
     const insets = useSafeAreaInsets();
+    const { colors, theme } = useTheme();
     const preselectedCategory = route?.params?.preselectedCategory;
     const [selectedCategory, setSelectedCategory] = useState<TaskCategory>(preselectedCategory || 'finance');
     const [title, setTitle] = useState('');
@@ -76,7 +78,16 @@ export const AddCardScreen = ({ navigation, route }: any) => {
 
     const handleCategorySelect = (id: TaskCategory) => {
         setSelectedCategory(id);
-        if (id === 'work' || id === 'academic') {
+        if (id === 'finance') {
+            setDurationMode('indefinite');
+            setRecurrenceFreq('monthly');
+        } else if (id === 'housing') {
+            setDurationMode('indefinite');
+            setRecurrenceFreq('monthly');
+        } else if (id === 'utility') {
+            setDurationMode('indefinite');
+            setRecurrenceFreq('monthly');
+        } else if (id === 'work' || id === 'academic') {
             setDurationMode('once');
             setRecurrenceFreq('weekly');
         } else if (id === 'medicine') {
@@ -89,6 +100,12 @@ export const AddCardScreen = ({ navigation, route }: any) => {
             setDurationMode('indefinite');
             setRecurrenceFreq('monthly');
         }
+    };
+
+    const getAvailableFrequencies = () => {
+        if (selectedCategory === 'finance') return ['monthly', 'yearly'] as const;
+        if (selectedCategory === 'housing') return ['monthly', 'yearly'] as const;
+        return ['daily', 'weekly', 'monthly', 'yearly'] as const;
     };
 
     const handleSave = async () => {
@@ -185,10 +202,10 @@ export const AddCardScreen = ({ navigation, route }: any) => {
     const accentColor = currentCategory.gradient[0];
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} />
             <LinearGradient
-                colors={Colors.dark.gradients.AppBackground as any}
+                colors={colors.gradients.AppBackground as any}
                 style={StyleSheet.absoluteFill}
             />
 
@@ -198,11 +215,11 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
             >
-                <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn} activeOpacity={0.7}>
-                        <MaterialCommunityIcons name="close" size={22} color="#fff" />
+                <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.closeBtn, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
+                        <MaterialCommunityIcons name="close" size={22} color={colors.text} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>New Task</Text>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>New Task</Text>
                     <TouchableOpacity onPress={handleSave} activeOpacity={0.7}>
                         <LinearGradient
                             colors={currentCategory.gradient as any}
@@ -223,9 +240,9 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                     <View style={styles.inputSection}>
                         <Text style={[styles.sectionLabel, { color: accentColor }]}>WHAT</Text>
                         <TextInput
-                            style={styles.mainInput}
+                            style={[styles.mainInput, { color: colors.text }]}
                             placeholder={getPlaceholder(selectedCategory)}
-                            placeholderTextColor="rgba(255,255,255,0.2)"
+                            placeholderTextColor={theme === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.25)'}
                             value={title}
                             onChangeText={setTitle}
                             selectionColor={accentColor}
@@ -237,9 +254,9 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                 <View style={styles.subInputWrap}>
                                     <Text style={[styles.sectionLabel, { color: accentColor }]}>LAST 4 DIGITS</Text>
                                     <TextInput
-                                        style={styles.subInput}
+                                        style={[styles.subInput, { color: colors.text }]}
                                         placeholder="8842"
-                                        placeholderTextColor="rgba(255,255,255,0.2)"
+                                        placeholderTextColor={theme === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.25)'}
                                         value={subtitle}
                                         onChangeText={(t) => { if (/^\d*$/.test(t) && t.length <= 4) setSubtitle(t); }}
                                         keyboardType="numeric"
@@ -250,9 +267,9 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                 <View style={styles.subInputWrap}>
                                     <Text style={[styles.sectionLabel, { color: accentColor }]}>AMOUNT (₹)</Text>
                                     <TextInput
-                                        style={styles.subInput}
+                                        style={[styles.subInput, { color: colors.text }]}
                                         placeholder="0.00"
-                                        placeholderTextColor="rgba(255,255,255,0.2)"
+                                        placeholderTextColor={theme === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.25)'}
                                         value={amount}
                                         onChangeText={setAmount}
                                         keyboardType="numeric"
@@ -279,10 +296,10 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                             isSelected && { borderColor: cat.gradient[0], backgroundColor: `${cat.gradient[0]}15` }
                                         ]}
                                     >
-                                        <View style={[styles.catIconWrap, { backgroundColor: isSelected ? cat.gradient[0] : 'rgba(255,255,255,0.06)' }]}>
-                                            <MaterialCommunityIcons name={cat.icon as any} size={16} color={isSelected ? '#fff' : Colors.dark.textTertiary} />
+                                        <View style={[styles.catIconWrap, { backgroundColor: isSelected ? cat.gradient[0] : theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                                            <MaterialCommunityIcons name={cat.icon as any} size={16} color={isSelected ? '#fff' : colors.textTertiary} />
                                         </View>
-                                        <Text style={[styles.catLabel, isSelected && { color: '#fff', fontWeight: '600' }]}>{cat.label}</Text>
+                                        <Text style={[styles.catLabel, { color: colors.textSecondary }, isSelected && { color: '#fff', fontWeight: '600' }]}>{cat.label}</Text>
                                     </TouchableOpacity>
                                 );
                             })}
@@ -304,7 +321,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                 return (
                                     <TouchableOpacity
                                         onPress={() => setSelectedDay(item)}
-                                        style={[styles.dateChip, isActive && { borderColor: accentColor }]}
+                                        style={[styles.dateChip, { borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }, isActive && { borderColor: accentColor }]}
                                     >
                                         {isActive ? (
                                             <LinearGradient
@@ -312,7 +329,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                                 style={[StyleSheet.absoluteFill, { borderRadius: 12 }]}
                                             />
                                         ) : null}
-                                        <Text style={[styles.dateNum, isActive && { color: '#fff', fontWeight: '700' }]}>
+                                        <Text style={[styles.dateNum, { color: colors.textSecondary }, isActive && { color: '#fff', fontWeight: '700' }]}>
                                             {item}
                                         </Text>
                                         {isToday && !isActive && <View style={[styles.todayDot, { backgroundColor: accentColor }]} />}
@@ -325,12 +342,12 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                     <View style={styles.section}>
                         <Text style={[styles.sectionLabel, { color: accentColor }]}>FREQUENCY</Text>
                         <View style={styles.freqRow}>
-                            {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((freq) => {
+                            {getAvailableFrequencies().map((freq) => {
                                 const isActive = recurrenceFreq === freq;
                                 return (
                                     <TouchableOpacity
                                         key={freq}
-                                        style={[styles.freqChip, isActive && { borderColor: accentColor }]}
+                                        style={[styles.freqChip, { borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }, isActive && { borderColor: accentColor }]}
                                         onPress={() => {
                                             setRecurrenceFreq(freq);
                                             if (freq === 'daily' || freq === 'weekly') {
@@ -344,7 +361,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                                 style={[StyleSheet.absoluteFill, { borderRadius: 12 }]}
                                             />
                                         ) : null}
-                                        <Text style={[styles.freqText, isActive && { color: '#fff', fontWeight: '700' }]}>
+                                        <Text style={[styles.freqText, { color: colors.textSecondary }, isActive && { color: '#fff', fontWeight: '700' }]}>
                                             {freq.charAt(0).toUpperCase() + freq.slice(1)}
                                         </Text>
                                     </TouchableOpacity>
@@ -369,7 +386,7 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                                             onPress={() => setDurationMode(mode)}
                                             disabled={isDisabled}
                                         >
-                                            <Text style={[styles.durationText, isActive && { color: accentColor, fontWeight: '700' }]}>
+                                            <Text style={[styles.durationText, { color: colors.textSecondary }, isActive && { color: accentColor, fontWeight: '700' }]}>
                                                 {mode === 'indefinite' ? 'Forever' : mode === 'once' ? 'Once' : 'Custom'}
                                             </Text>
                                         </TouchableOpacity>
@@ -378,20 +395,20 @@ export const AddCardScreen = ({ navigation, route }: any) => {
                             </View>
                             {durationMode === 'fixed' && (
                                 <View style={styles.stepperRow}>
-                                    <Text style={styles.stepperLabel}>Duration</Text>
+                                    <Text style={[styles.stepperLabel, { color: colors.textSecondary }]}>Duration</Text>
                                     <View style={styles.stepper}>
                                         <TouchableOpacity
                                             style={styles.stepBtn}
                                             onPress={() => setDurationMonths(Math.max(1, durationMonths - 1))}
                                         >
-                                            <MaterialCommunityIcons name="minus" size={16} color={Colors.dark.textSecondary} />
+                                            <MaterialCommunityIcons name="minus" size={16} color={colors.textSecondary} />
                                         </TouchableOpacity>
-                                        <Text style={styles.stepValue}>{durationMonths} mo</Text>
+                                        <Text style={[styles.stepValue, { color: colors.text }]}>{durationMonths} mo</Text>
                                         <TouchableOpacity
                                             style={styles.stepBtn}
                                             onPress={() => setDurationMonths(Math.min(24, durationMonths + 1))}
                                         >
-                                            <MaterialCommunityIcons name="plus" size={16} color={Colors.dark.textSecondary} />
+                                            <MaterialCommunityIcons name="plus" size={16} color={colors.textSecondary} />
                                         </TouchableOpacity>
                                     </View>
                                 </View>

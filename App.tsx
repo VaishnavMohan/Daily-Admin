@@ -1,4 +1,4 @@
-import { DarkTheme, NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -12,12 +12,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { NotificationService } from './src/services/NotificationService';
 import { LifeDashboard, TimelineScreen, SplitBillScreen, AddBillScreen, ProfileScreen, SettingsScreen, AddCardScreen, CategoryDetailScreen, CategoriesScreen, ExpenseTrackerScreen } from './src/screens';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function CustomTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { colors, theme } = useTheme();
   const animatedValues = useRef(
     state.routes.map((_: any, i: number) => new RNAnimated.Value(i === state.index ? 1 : 0))
   ).current;
@@ -49,15 +51,25 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
     Categories: 'Categories',
   };
 
+  const inactiveColor = theme === 'dark' ? '#475569' : '#94A3B8';
+  const activeColor = theme === 'dark' ? '#FFFFFF' : '#0F172A';
+
   return (
     <View style={[tabStyles.container, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 8) }]}>
-      <View style={tabStyles.barOuter}>
-        <BlurView tint="dark" intensity={80} style={StyleSheet.absoluteFill} />
+      <View style={[tabStyles.barOuter, {
+        borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+      }]}>
+        <BlurView tint={theme === 'dark' ? 'dark' : 'light'} intensity={80} style={StyleSheet.absoluteFill} />
         <LinearGradient
-          colors={['rgba(30, 41, 59, 0.85)', 'rgba(15, 23, 42, 0.95)']}
+          colors={theme === 'dark'
+            ? ['rgba(30, 41, 59, 0.85)', 'rgba(15, 23, 42, 0.95)']
+            : ['rgba(255, 255, 255, 0.9)', 'rgba(241, 245, 249, 0.95)']
+          }
           style={StyleSheet.absoluteFill}
         />
-        <View style={tabStyles.topBorder} />
+        <View style={[tabStyles.topBorder, {
+          backgroundColor: theme === 'dark' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(14, 165, 233, 0.2)',
+        }]} />
 
         <View style={tabStyles.tabRow}>
           {state.routes.map((route: any, index: number) => {
@@ -95,9 +107,23 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                   activeOpacity={0.8}
                   style={tabStyles.addButtonWrapper}
                 >
-                  <View style={tabStyles.addButton}>
+                  <View style={[tabStyles.addButton, {
+                    borderColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.6)' : 'rgba(255, 255, 255, 0.8)',
+                    ...Platform.select({
+                      web: {
+                        boxShadow: `0 6px 20px rgba(14, 165, 233, 0.3)`,
+                      },
+                      default: {
+                        shadowColor: colors.primary,
+                        shadowOffset: { width: 0, height: 6 },
+                        shadowOpacity: 0.35,
+                        shadowRadius: 12,
+                        elevation: 10,
+                      },
+                    }),
+                  }]}>
                     <LinearGradient
-                      colors={isExpensesActive ? ['#10B981', '#059669'] : [Colors.dark.primary, '#0EA5E9']}
+                      colors={isExpensesActive ? ['#10B981', '#059669'] : [colors.primary, '#0EA5E9']}
                       style={tabStyles.addGradient}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -123,7 +149,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 
             const animatedColor = animatedValues[index].interpolate({
               inputRange: [0, 1],
-              outputRange: ['#475569', '#FFFFFF'],
+              outputRange: [inactiveColor, activeColor],
             });
 
             const indicatorOpacity = animatedValues[index].interpolate({
@@ -139,12 +165,12 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                 style={tabStyles.tabItem}
               >
                 <RNAnimated.View style={[tabStyles.tabContent, { transform: [{ scale: animatedScale }] }]}>
-                  <RNAnimated.View style={[tabStyles.activeIndicator, { opacity: indicatorOpacity }]} />
+                  <RNAnimated.View style={[tabStyles.activeIndicator, { opacity: indicatorOpacity, backgroundColor: colors.primary }]} />
                   <RNAnimated.Text style={{ color: animatedColor }}>
                     <MaterialCommunityIcons
                       name={isFocused ? iconConfig.active : iconConfig.inactive}
                       size={22}
-                      color={isFocused ? '#fff' : '#475569'}
+                      color={isFocused ? activeColor : inactiveColor}
                     />
                   </RNAnimated.Text>
                   <RNAnimated.Text
@@ -181,12 +207,10 @@ const tabStyles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     marginBottom: 4,
   },
   topBorder: {
     height: 0.5,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
     position: 'absolute',
     top: 0,
     left: 20,
@@ -217,7 +241,6 @@ const tabStyles = StyleSheet.create({
     width: 20,
     height: 3,
     borderRadius: 2,
-    backgroundColor: Colors.dark.primary,
   },
   tabLabel: {
     fontSize: 10,
@@ -236,19 +259,6 @@ const tabStyles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'rgba(15, 23, 42, 0.6)',
-    ...Platform.select({
-      web: {
-        boxShadow: '0 6px 20px rgba(56, 189, 248, 0.3)',
-      },
-      default: {
-        shadowColor: Colors.dark.primary,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.35,
-        shadowRadius: 12,
-        elevation: 10,
-      },
-    }),
   },
   addGradient: {
     width: '100%',
@@ -281,58 +291,76 @@ function TabNavigator() {
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-export default function App() {
+function AppContent() {
+  const { colors, theme } = useTheme();
+
   useEffect(() => {
     NotificationService.registerForPushNotificationsAsync();
   }, []);
 
+  const navTheme = theme === 'dark' ? {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      background: colors.background,
+    }
+  } : {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: colors.background,
+    }
+  };
+
+  return (
+    <NavigationContainer theme={navTheme}>
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Root" component={TabNavigator} />
+        <Stack.Screen
+          name="AddBillModal"
+          component={AddBillScreen}
+          options={{
+            presentation: 'modal',
+            headerShown: true,
+            headerTitle: 'Add New',
+            headerStyle: {
+              backgroundColor: colors.surface,
+            },
+            headerTintColor: colors.text,
+          }}
+        />
+        <Stack.Screen
+          name="AddCard"
+          component={AddCardScreen}
+          options={{ presentation: 'modal', headerShown: false }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ presentation: 'card', headerShown: false }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ presentation: 'modal', headerShown: false }}
+        />
+        <Stack.Screen
+          name="CategoryDetail"
+          component={CategoryDetailScreen}
+          options={{ headerShown: false }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer theme={{
-        ...DarkTheme,
-        colors: {
-          ...DarkTheme.colors,
-          background: Colors.dark.background,
-        }
-      }}>
-        <StatusBar style="light" />
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Root" component={TabNavigator} />
-          <Stack.Screen
-            name="AddBillModal"
-            component={AddBillScreen}
-            options={{
-              presentation: 'modal',
-              headerShown: true,
-              headerTitle: 'Add New',
-              headerStyle: {
-                backgroundColor: Colors.dark.surface,
-              },
-              headerTintColor: '#fff',
-            }}
-          />
-          <Stack.Screen
-            name="AddCard"
-            component={AddCardScreen}
-            options={{ presentation: 'modal', headerShown: false }}
-          />
-          <Stack.Screen
-            name="Profile"
-            component={ProfileScreen}
-            options={{ presentation: 'card', headerShown: false }}
-          />
-          <Stack.Screen
-            name="Settings"
-            component={SettingsScreen}
-            options={{ presentation: 'modal', headerShown: false }}
-          />
-          <Stack.Screen
-            name="CategoryDetail"
-            component={CategoryDetailScreen}
-            options={{ headerShown: false }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }

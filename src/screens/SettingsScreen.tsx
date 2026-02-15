@@ -3,13 +3,16 @@ import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert } f
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Colors from '../constants/Colors';
 import { Button } from '../components/Button';
 import { StorageService } from '../services/StorageService';
 import { NotificationService } from '../services/NotificationService';
+import { useTheme } from '../context/ThemeContext';
 
 export const SettingsScreen = ({ navigation }: any) => {
     const insets = useSafeAreaInsets();
+    const { colors, theme, toggleTheme } = useTheme();
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [frequency, setFrequency] = useState<'off' | 'due-only' | 'urgent-due' | '3-day' | '5-day'>('urgent-due');
     const [isLoading, setIsLoading] = useState(false);
@@ -58,22 +61,27 @@ export const SettingsScreen = ({ navigation }: any) => {
         const selected = frequency === value;
         return (
             <TouchableOpacity
-                style={[styles.optionCard, selected && styles.optionCardSelected]}
+                style={[styles.optionCard, selected && { borderColor: `${colors.primary}60` }, {
+                    borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                }]}
                 onPress={() => setFrequency(value)}
                 activeOpacity={0.7}
             >
                 {selected && (
                     <LinearGradient
-                        colors={['rgba(56, 189, 248, 0.1)', 'rgba(56, 189, 248, 0.03)']}
+                        colors={[`${colors.primary}15`, `${colors.primary}05`]}
                         style={StyleSheet.absoluteFill}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                     />
                 )}
-                <View style={[styles.radioOuter, selected && styles.radioOuterSelected]}>
+                <View style={[styles.radioOuter, selected ? { borderColor: colors.primary } : {
+                    borderColor: theme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)',
+                }]}>
                     {selected && (
                         <LinearGradient
-                            colors={[Colors.dark.primary, '#0EA5E9']}
+                            colors={[colors.primary, '#0EA5E9']}
                             style={styles.radioInner}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
@@ -81,46 +89,75 @@ export const SettingsScreen = ({ navigation }: any) => {
                     )}
                 </View>
                 <View style={{ flex: 1 }}>
-                    <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                    <Text style={[styles.optionLabel, { color: selected ? colors.primary : colors.text }]}>
                         {label}
                     </Text>
-                    <Text style={styles.optionDescription}>{description}</Text>
+                    <Text style={[styles.optionDescription, { color: colors.textSecondary }]}>{description}</Text>
                 </View>
             </TouchableOpacity>
         );
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <LinearGradient
-                colors={Colors.dark.gradients.AppBackground as any}
+                colors={colors.gradients.AppBackground as any}
                 style={StyleSheet.absoluteFill}
             />
             <View style={{ flex: 1, paddingTop: insets.top }}>
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <Animated.View entering={FadeInDown.delay(50).springify()} style={styles.header}>
-                        <Text style={styles.headerTitle}>Settings</Text>
-                        <Text style={styles.subHeader}>Configure your notification preferences</Text>
+                        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
+                        <Text style={[styles.subHeader, { color: colors.textSecondary }]}>Configure your preferences</Text>
+                    </Animated.View>
+
+                    <Animated.View entering={FadeInDown.delay(80).springify()}>
+                        <LinearGradient
+                            colors={[colors.glass.medium, theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.5)']}
+                            style={[styles.section, { borderColor: colors.glass.border }]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                        >
+                            <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Appearance</Text>
+                            <View style={styles.toggleRow}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.toggleLabel, { color: colors.text }]}>Dark Mode</Text>
+                                    <Text style={[styles.toggleDescription, { color: colors.textSecondary }]}>
+                                        {theme === 'dark' ? 'Dark theme active' : 'Light theme active'}
+                                    </Text>
+                                </View>
+                                <TouchableOpacity onPress={toggleTheme} style={[styles.themeToggleButton, {
+                                    backgroundColor: theme === 'dark' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(14, 165, 233, 0.12)',
+                                    borderColor: theme === 'dark' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(14, 165, 233, 0.25)',
+                                }]}>
+                                    <MaterialCommunityIcons
+                                        name={theme === 'dark' ? 'weather-night' : 'weather-sunny'}
+                                        size={22}
+                                        color={colors.primary}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                        </LinearGradient>
                     </Animated.View>
 
                     <Animated.View entering={FadeInDown.delay(100).springify()}>
                         <LinearGradient
-                            colors={[Colors.dark.glass.medium, 'rgba(15, 23, 42, 0.5)']}
-                            style={styles.section}
+                            colors={[colors.glass.medium, theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.5)']}
+                            style={[styles.section, { borderColor: colors.glass.border }]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 0, y: 1 }}
                         >
                             <View style={styles.toggleRow}>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.toggleLabel}>Enable Notifications</Text>
-                                    <Text style={styles.toggleDescription}>
+                                    <Text style={[styles.toggleLabel, { color: colors.text }]}>Enable Notifications</Text>
+                                    <Text style={[styles.toggleDescription, { color: colors.textSecondary }]}>
                                         Receive reminders for upcoming bills
                                     </Text>
                                 </View>
                                 <Switch
                                     value={notificationsEnabled}
                                     onValueChange={setNotificationsEnabled}
-                                    trackColor={{ false: Colors.dark.border, true: Colors.dark.primary }}
+                                    trackColor={{ false: colors.border, true: colors.primary }}
                                     thumbColor="#ffffff"
                                 />
                             </View>
@@ -130,12 +167,12 @@ export const SettingsScreen = ({ navigation }: any) => {
                     {notificationsEnabled && (
                         <Animated.View entering={FadeInDown.delay(150).springify()}>
                             <LinearGradient
-                                colors={[Colors.dark.glass.medium, 'rgba(15, 23, 42, 0.5)']}
-                                style={styles.section}
+                                colors={[colors.glass.medium, theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.5)']}
+                                style={[styles.section, { borderColor: colors.glass.border }]}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 0, y: 1 }}
                             >
-                                <Text style={styles.sectionTitle}>Notification Frequency</Text>
+                                <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Notification Frequency</Text>
 
                                 <FrequencyOption
                                     value="off"
@@ -194,7 +231,6 @@ export const SettingsScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.dark.background,
     },
     content: {
         padding: 24,
@@ -206,13 +242,11 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 34,
-        color: Colors.dark.white,
         fontWeight: '800',
         letterSpacing: -1,
     },
     subHeader: {
         fontSize: 15,
-        color: Colors.dark.textSecondary,
         marginTop: 4,
         fontWeight: '500',
     },
@@ -220,13 +254,11 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: 20,
         borderWidth: 1,
-        borderColor: Colors.dark.glass.border,
         marginBottom: 20,
         overflow: 'hidden',
     },
     sectionTitle: {
         fontSize: 13,
-        color: Colors.dark.textTertiary,
         fontWeight: '700',
         marginBottom: 16,
         textTransform: 'uppercase',
@@ -239,13 +271,19 @@ const styles = StyleSheet.create({
     },
     toggleLabel: {
         fontSize: 18,
-        color: Colors.dark.text,
         fontWeight: '700',
     },
     toggleDescription: {
         fontSize: 14,
-        color: Colors.dark.textSecondary,
         marginTop: 4,
+    },
+    themeToggleButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
     },
     optionCard: {
         flexDirection: 'row',
@@ -253,27 +291,18 @@ const styles = StyleSheet.create({
         padding: 16,
         borderRadius: 16,
         borderWidth: 1.5,
-        borderColor: 'rgba(255,255,255,0.08)',
         marginBottom: 10,
-        backgroundColor: 'rgba(255,255,255,0.02)',
         overflow: 'hidden',
         position: 'relative',
-    },
-    optionCardSelected: {
-        borderColor: `${Colors.dark.primary}60`,
     },
     radioOuter: {
         width: 22,
         height: 22,
         borderRadius: 11,
         borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.15)',
         marginRight: 14,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    radioOuterSelected: {
-        borderColor: Colors.dark.primary,
     },
     radioInner: {
         width: 12,
@@ -282,15 +311,10 @@ const styles = StyleSheet.create({
     },
     optionLabel: {
         fontSize: 16,
-        color: Colors.dark.text,
         fontWeight: '600',
         marginBottom: 3,
     },
-    optionLabelSelected: {
-        color: Colors.dark.primary,
-    },
     optionDescription: {
         fontSize: 13,
-        color: Colors.dark.textSecondary,
     },
 });

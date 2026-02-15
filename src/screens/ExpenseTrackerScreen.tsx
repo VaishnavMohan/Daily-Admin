@@ -7,8 +7,9 @@ import Animated, { FadeInDown, FadeInRight, Layout, ZoomIn } from 'react-native-
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../constants/Colors';
+import { useTheme } from '../context/ThemeContext';
 import { StorageService } from '../services/StorageService';
-import { LifeTask, TaskCategory } from '../types';
+import { LifeTask, TaskCategory, ExpenseBudget } from '../types';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import WebSwipeable from '../components/WebSwipeable';
@@ -18,9 +19,13 @@ const { width } = Dimensions.get('window');
 
 export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
     const insets = useSafeAreaInsets();
+    const { colors, theme } = useTheme();
     const [expenses, setExpenses] = useState<LifeTask[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showMonthPicker, setShowMonthPicker] = useState(false);
+    const [budgets, setBudgets] = useState<ExpenseBudget[]>([]);
+    const [showBudgetModal, setShowBudgetModal] = useState(false);
+    const [budgetInputs, setBudgetInputs] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (route?.params?.openAddExpense) {
@@ -118,6 +123,8 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
         const allTasks = await StorageService.getTasks();
         const expenseTasks = allTasks.filter(t => t.type === 'expense');
         setExpenses(expenseTasks.sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()));
+        const savedBudgets = await StorageService.getBudgets();
+        setBudgets(savedBudgets);
     };
 
     const handleAddExpense = async () => {
@@ -284,6 +291,48 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
 
     const filteredTotal = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
+    const monthlySpendByCategory = useMemo(() => {
+        const result: Record<string, number> = {};
+        const month = currentViewMonth.getMonth();
+        const year = currentViewMonth.getFullYear();
+        expenses.forEach(e => {
+            const [ey, em] = e.dueDate.split('-').map(Number);
+            if (ey === year && em - 1 === month) {
+                result[e.category] = (result[e.category] || 0) + (e.amount || 0);
+            }
+        });
+        return result;
+    }, [expenses, currentViewMonth]);
+
+    const openBudgetModal = () => {
+        const inputs: Record<string, string> = {};
+        categories.forEach(cat => {
+            const existing = budgets.find(b => b.category === cat.key);
+            inputs[cat.key] = existing ? String(existing.monthlyLimit) : '';
+        });
+        setBudgetInputs(inputs);
+        setShowBudgetModal(true);
+    };
+
+    const handleSaveBudgets = async () => {
+        const newBudgets: ExpenseBudget[] = [];
+        categories.forEach(cat => {
+            const val = parseFloat(budgetInputs[cat.key] || '');
+            if (val > 0) {
+                newBudgets.push({ category: cat.key, monthlyLimit: val });
+            }
+        });
+        await StorageService.saveBudgets(newBudgets);
+        setBudgets(newBudgets);
+        setShowBudgetModal(false);
+    };
+
+    const getBudgetBarColor = (percent: number): [string, string] => {
+        if (percent > 1) return ['#EF4444', '#DC2626'];
+        if (percent > 0.5) return ['#F59E0B', '#D97706'];
+        return ['#10B981', '#059669'];
+    };
+
     // Keep daily list separate (for the list below) or same? 
     // The user wants 'filter', enabling day/month/year stats.
     // The list below currently shows 'Day Details'. 
@@ -319,9 +368,9 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <LinearGradient
-                colors={[Colors.dark.background, '#0f172a']}
+                colors={colors.gradients.AppBackground as unknown as string[]}
                 style={StyleSheet.absoluteFill}
             />
 
@@ -331,26 +380,26 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
 
                 {/* Month Selector Title */}
                 <TouchableOpacity
-                    style={styles.monthSelector}
+                    style={[styles.monthSelector, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
                     onPress={() => setShowMonthPicker(true)}
                 >
-                    <Text style={styles.headerTitle}>{currentViewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
-                    <MaterialCommunityIcons name="chevron-down" size={20} color={Colors.dark.text} />
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>{currentViewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
+                    <MaterialCommunityIcons name="chevron-down" size={20} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.headerActions}>
                     <TouchableOpacity
                         onPress={() => setShowInsights(true)}
-                        style={styles.headerInsightBtn}
+                        style={[styles.headerInsightBtn, { backgroundColor: `${colors.primary}18`, borderColor: `${colors.primary}30` }]}
                     >
-                        <MaterialCommunityIcons name="chart-bar" size={20} color={Colors.dark.primary} />
+                        <MaterialCommunityIcons name="chart-bar" size={20} color={colors.primary} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         onPress={() => handleExport()}
-                        style={styles.headerInsightBtn}
+                        style={[styles.headerInsightBtn, { backgroundColor: theme === 'dark' ? 'rgba(56,189,248,0.12)' : 'rgba(0,0,0,0.04)', borderColor: theme === 'dark' ? 'rgba(56,189,248,0.2)' : 'rgba(0,0,0,0.06)' }]}
                     >
-                        <MaterialCommunityIcons name="download" size={20} color={Colors.dark.textSecondary} />
+                        <MaterialCommunityIcons name="download" size={20} color={colors.textSecondary} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -381,8 +430,8 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                                     </Text>
                                 </LinearGradient>
                             ) : (
-                                <View style={styles.filterChip}>
-                                    <Text style={styles.filterText}>
+                                <View style={[styles.filterChip, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
+                                    <Text style={[styles.filterText, { color: colors.textSecondary }]}>
                                         {range === 'day' ? 'Today' : range === 'month' ? 'This Month' : range === 'year' ? 'Year' : range.toUpperCase()}
                                     </Text>
                                 </View>
@@ -395,32 +444,32 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
             {/* Total Balance Card */}
             <View style={styles.overviewWrapper}>
                 <LinearGradient
-                    colors={['rgba(56,189,248,0.25)', 'rgba(14,165,233,0.08)', 'rgba(15,23,42,0)']}
+                    colors={theme === 'dark' ? ['rgba(56,189,248,0.25)', 'rgba(14,165,233,0.08)', 'rgba(15,23,42,0)'] : ['rgba(14,165,233,0.15)', 'rgba(14,165,233,0.05)', 'rgba(248,250,252,0)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.overviewGradientBorder}
                 >
-                    <View style={styles.overviewContainer}>
+                    <View style={[styles.overviewContainer, { backgroundColor: theme === 'dark' ? 'rgba(15,23,42,0.85)' : 'rgba(255,255,255,0.9)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}>
                         <View style={styles.overviewRow}>
                             <View>
-                                <Text style={styles.monthLabel}>
+                                <Text style={[styles.monthLabel, { color: colors.textSecondary }]}>
                                     {filterRange === 'day' ? 'Spent Today' :
                                         filterRange === 'month' ? 'Spent in ' + currentViewMonth.toLocaleDateString('en-US', { month: 'short' }) :
                                             filterRange === 'year' ? 'Spent in ' + currentViewMonth.getFullYear() :
                                                 'Total Spent'}
                                 </Text>
                                 <Animated.Text
-                                    key={filteredTotal} // Animate on change
+                                    key={filteredTotal}
                                     entering={FadeInDown.springify()}
-                                    style={styles.monthValue}
+                                    style={[styles.monthValue, { color: colors.text }]}
                                 >
                                     ₹{filteredTotal.toLocaleString()}
                                 </Animated.Text>
                             </View>
 
                             <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
-                                <MaterialCommunityIcons name="export-variant" size={18} color={Colors.dark.primary} />
-                                <Text style={styles.exportText}>Export</Text>
+                                <MaterialCommunityIcons name="export-variant" size={18} color={colors.primary} />
+                                <Text style={[styles.exportText, { color: colors.primary }]}>Export</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -554,6 +603,7 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                                 <TouchableOpacity
                                     style={[
                                         styles.dateItem,
+                                        { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' },
                                         isFuture && styles.dateItemFuture
                                     ]}
                                     onPress={() => {
@@ -584,13 +634,13 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                                         </LinearGradient>
                                     ) : (
                                         <>
-                                            <Text style={styles.dayName}>
+                                            <Text style={[styles.dayName, { color: colors.textTertiary }]}>
                                                 {date.toLocaleDateString('en-US', { weekday: 'short' })}
                                             </Text>
-                                            <Text style={styles.dayNumber}>
+                                            <Text style={[styles.dayNumber, { color: colors.textSecondary }]}>
                                                 {date.getDate()}
                                             </Text>
-                                            {hasData && <View style={styles.dot} />}
+                                            {hasData && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
                                         </>
                                     )}
                                 </TouchableOpacity>
@@ -604,14 +654,81 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Heatmap moved to Modal */}
+                    {/* Budget Overview */}
+                    {budgets.length > 0 && (
+                        <View style={styles.budgetSection}>
+                            <View style={styles.budgetHeader}>
+                                <View style={styles.budgetTitleRow}>
+                                    <MaterialCommunityIcons name="target" size={18} color={Colors.dark.primary} />
+                                    <Text style={styles.budgetSectionTitle}>Budget Overview</Text>
+                                </View>
+                                <TouchableOpacity onPress={openBudgetModal} style={styles.setBudgetBtnSmall}>
+                                    <MaterialCommunityIcons name="pencil" size={14} color={Colors.dark.primary} />
+                                    <Text style={styles.setBudgetBtnSmallText}>Edit</Text>
+                                </TouchableOpacity>
+                            </View>
+                            {budgets.map((budget, index) => {
+                                const cat = categories.find(c => c.key === budget.category);
+                                if (!cat) return null;
+                                const spent = monthlySpendByCategory[budget.category] || 0;
+                                const percent = budget.monthlyLimit > 0 ? spent / budget.monthlyLimit : 0;
+                                const barColors = getBudgetBarColor(percent);
+                                const barWidth = Math.min(percent, 1) * 100;
+                                return (
+                                    <Animated.View
+                                        key={budget.category}
+                                        entering={FadeInDown.delay(index * 60).springify()}
+                                        style={styles.budgetRow}
+                                    >
+                                        <View style={styles.budgetRowTop}>
+                                            <View style={styles.budgetCatInfo}>
+                                                <View style={[styles.budgetCatIcon, { backgroundColor: cat.color + '18' }]}>
+                                                    <MaterialCommunityIcons name={cat.icon} size={16} color={cat.color} />
+                                                </View>
+                                                <Text style={styles.budgetCatLabel}>{cat.label}</Text>
+                                            </View>
+                                            <Text style={[styles.budgetAmountText, percent > 1 && { color: '#EF4444' }]}>
+                                                ₹{spent.toLocaleString()} / ₹{budget.monthlyLimit.toLocaleString()}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.budgetBarBg}>
+                                            {barWidth > 0 && (
+                                                <LinearGradient
+                                                    colors={barColors}
+                                                    start={{ x: 0, y: 0 }}
+                                                    end={{ x: 1, y: 0 }}
+                                                    style={[styles.budgetBarFill, { width: `${barWidth}%` }]}
+                                                />
+                                            )}
+                                            {percent > 1 && (
+                                                <View style={styles.budgetBarOverflow}>
+                                                    <Text style={styles.budgetBarOverflowText}>
+                                                        {Math.round((percent - 1) * 100)}% over
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </Animated.View>
+                                );
+                            })}
+                        </View>
+                    )}
 
-                    <View style={[styles.dayDetails, { minHeight: 500 }]}>
+                    {budgets.length === 0 && (
+                        <View style={styles.budgetEmptySection}>
+                            <TouchableOpacity onPress={openBudgetModal} style={styles.setBudgetBtn}>
+                                <MaterialCommunityIcons name="target" size={16} color={Colors.dark.primary} />
+                                <Text style={styles.setBudgetBtnText}>Set Budget Limits</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    <View style={[styles.dayDetails, { minHeight: 500, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }]}>
                         <View style={styles.dayHeader}>
-                            <Text style={styles.dayHeaderTitle}>
+                            <Text style={[styles.dayHeaderTitle, { color: colors.text }]}>
                                 {selectedDateStr === formatLocalDate(new Date()) ? 'Today' : selectedDate.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric' })}
                             </Text>
-                            <Text style={styles.dayHeaderTotal}>{dayTotal > 0 ? `₹${dayTotal.toLocaleString()}` : ''}</Text>
+                            <Text style={[styles.dayHeaderTotal, { color: colors.primary }]}>{dayTotal > 0 ? `₹${dayTotal.toLocaleString()}` : ''}</Text>
                         </View>
 
                         {dayExpenses.length > 0 ? (
@@ -655,7 +772,7 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                                         >
                                             <Animated.View
                                                 entering={FadeInDown.delay(index * 50).springify()}
-                                                style={styles.expenseRow}
+                                                style={[styles.expenseRow, { backgroundColor: theme === 'dark' ? 'rgba(30,41,59,0.5)' : 'rgba(255,255,255,0.8)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}
                                             >
                                                 <View style={[styles.expenseAccent, { backgroundColor: catColor }]} />
                                                 <View style={[styles.catIcon, { backgroundColor: catColor + '18' }]}>
@@ -666,11 +783,11 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                                                     />
                                                 </View>
                                                 <View style={styles.expenseInfo}>
-                                                    <Text style={styles.expenseTitle}>{expense.title}</Text>
-                                                    <Text style={styles.expenseCat}>{cat?.label}</Text>
+                                                    <Text style={[styles.expenseTitle, { color: colors.text }]}>{expense.title}</Text>
+                                                    <Text style={[styles.expenseCat, { color: colors.textTertiary }]}>{cat?.label}</Text>
                                                 </View>
                                                 <View style={styles.expenseAmountWrap}>
-                                                    <Text style={styles.expenseAmount}>₹{expense.amount?.toLocaleString()}</Text>
+                                                    <Text style={[styles.expenseAmount, { color: colors.text }]}>₹{expense.amount?.toLocaleString()}</Text>
                                                 </View>
                                             </Animated.View>
                                         </WebSwipeable>
@@ -680,10 +797,10 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                         ) : (
                             <View style={styles.emptyDayState}>
                                 <View style={styles.emptyIconWrap}>
-                                    <MaterialCommunityIcons name="receipt" size={40} color="rgba(56,189,248,0.3)" />
+                                    <MaterialCommunityIcons name="receipt" size={40} color={`${colors.primary}50`} />
                                 </View>
-                                <Text style={styles.emptyDayTitle}>No expenses yet</Text>
-                                <Text style={styles.emptyDayText}>Nothing recorded on this day</Text>
+                                <Text style={[styles.emptyDayTitle, { color: colors.text }]}>No expenses yet</Text>
+                                <Text style={[styles.emptyDayText, { color: colors.textTertiary }]}>Nothing recorded on this day</Text>
                                 {isCurrentMonth && (
                                     <TouchableOpacity onPress={() => setShowAddModal(true)}>
                                         <LinearGradient
@@ -801,6 +918,68 @@ export const ExpenseTrackerScreen = ({ navigation, route }: any) => {
                     </View>
                 </BlurView >
             </Modal >
+
+            {/* Set Budgets Modal */}
+            <Modal
+                transparent
+                visible={showBudgetModal}
+                animationType="slide"
+                onRequestClose={() => setShowBudgetModal(false)}
+            >
+                <BlurView intensity={40} tint="dark" style={styles.modalOverlay}>
+                    <View style={styles.budgetModalContent}>
+                        <LinearGradient
+                            colors={['rgba(56,189,248,0.08)', 'rgba(30,41,59,0)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.modalGlow}
+                        />
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Set Budget Limits</Text>
+                            <TouchableOpacity onPress={() => setShowBudgetModal(false)} style={styles.modalCloseBtn}>
+                                <MaterialCommunityIcons name="close" size={22} color={Colors.dark.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.budgetModalSubtitle}>
+                            Monthly spending limits per category
+                        </Text>
+
+                        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
+                            {categories.map(cat => (
+                                <View key={cat.key} style={styles.budgetInputRow}>
+                                    <View style={[styles.budgetInputIcon, { backgroundColor: cat.color + '18' }]}>
+                                        <MaterialCommunityIcons name={cat.icon} size={20} color={cat.color} />
+                                    </View>
+                                    <Text style={styles.budgetInputLabel}>{cat.label}</Text>
+                                    <View style={styles.budgetInputWrap}>
+                                        <Text style={styles.budgetInputCurrency}>₹</Text>
+                                        <TextInput
+                                            style={styles.budgetInputField}
+                                            placeholder="0"
+                                            placeholderTextColor="rgba(148,163,184,0.3)"
+                                            keyboardType="numeric"
+                                            value={budgetInputs[cat.key] || ''}
+                                            onChangeText={(text) => setBudgetInputs(prev => ({ ...prev, [cat.key]: text }))}
+                                        />
+                                    </View>
+                                </View>
+                            ))}
+
+                            <TouchableOpacity onPress={handleSaveBudgets}>
+                                <LinearGradient
+                                    colors={['#38BDF8', '#0EA5E9']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.saveButton}
+                                >
+                                    <MaterialCommunityIcons name="content-save" size={22} color="#fff" />
+                                    <Text style={styles.saveButtonText}>Save Budgets</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
+                </BlurView>
+            </Modal>
 
             {/* Universal Glassmorphism Modal */}
             <Modal
@@ -1559,5 +1738,185 @@ const styles = StyleSheet.create({
     confirmOkText: {
         color: '#fff',
         fontWeight: '700',
+    },
+    budgetSection: {
+        marginHorizontal: 20,
+        marginTop: 8,
+        marginBottom: 4,
+        backgroundColor: 'rgba(30,41,59,0.5)',
+        borderRadius: 24,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(56,189,248,0.1)',
+    },
+    budgetHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    budgetTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    budgetSectionTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#fff',
+        letterSpacing: 0.3,
+    },
+    setBudgetBtnSmall: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 12,
+        backgroundColor: 'rgba(56,189,248,0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(56,189,248,0.15)',
+    },
+    setBudgetBtnSmallText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.dark.primary,
+    },
+    budgetRow: {
+        marginBottom: 14,
+    },
+    budgetRowTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    budgetCatInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    budgetCatIcon: {
+        width: 28,
+        height: 28,
+        borderRadius: 9,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    budgetCatLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: Colors.dark.textSecondary,
+    },
+    budgetAmountText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.dark.textSecondary,
+    },
+    budgetBarBg: {
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        overflow: 'hidden',
+        position: 'relative',
+    },
+    budgetBarFill: {
+        height: '100%',
+        borderRadius: 4,
+        shadowColor: '#38BDF8',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.4,
+        shadowRadius: 6,
+    },
+    budgetBarOverflow: {
+        position: 'absolute',
+        right: 4,
+        top: -18,
+    },
+    budgetBarOverflowText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#EF4444',
+    },
+    budgetEmptySection: {
+        alignItems: 'center',
+        marginTop: 8,
+        marginBottom: 4,
+        paddingHorizontal: 20,
+    },
+    setBudgetBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 16,
+        backgroundColor: 'rgba(56,189,248,0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(56,189,248,0.15)',
+    },
+    setBudgetBtnText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: Colors.dark.primary,
+    },
+    budgetModalContent: {
+        backgroundColor: '#1E1B4B',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        padding: 24,
+        paddingBottom: 40,
+        borderTopWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        overflow: 'hidden',
+        maxHeight: '80%',
+    },
+    budgetModalSubtitle: {
+        color: Colors.dark.textSecondary,
+        fontSize: 13,
+        marginBottom: 20,
+        fontWeight: '500',
+    },
+    budgetInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 14,
+        gap: 12,
+    },
+    budgetInputIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    budgetInputLabel: {
+        flex: 1,
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#fff',
+    },
+    budgetInputWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 14,
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
+        width: 120,
+    },
+    budgetInputCurrency: {
+        fontSize: 16,
+        color: Colors.dark.primary,
+        fontWeight: '600',
+        marginRight: 4,
+    },
+    budgetInputField: {
+        flex: 1,
+        paddingVertical: 12,
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

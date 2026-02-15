@@ -50,6 +50,11 @@ export interface User {
     currency: string;
 }
 
+export interface ExpenseBudget {
+    category: TaskCategory;
+    monthlyLimit: number;
+}
+
 export interface AppSettings {
     notifications: {
         enabled: boolean;

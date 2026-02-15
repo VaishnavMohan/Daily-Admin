@@ -1,12 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Colors from '../constants/Colors';
 
-const { width } = Dimensions.get('window');
 
 interface BentoCardProps {
     title?: string;
@@ -34,8 +33,7 @@ export const BentoCard = ({
     colSpan = 2
 }: BentoCardProps) => {
 
-    // Calculate Width
-    const cardWidth = colSpan === 2 ? '100%' : (width - 48 - 12) / 2; // Screen - Padding - Gap / 2
+    const cardWidth = '100%';
 
     const isPressed = useSharedValue(false);
 

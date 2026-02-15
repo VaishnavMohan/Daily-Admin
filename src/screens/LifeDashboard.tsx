@@ -14,10 +14,12 @@ import { BentoCard } from '../components/BentoCard';
 import { TaskRow } from '../components/TaskRow';
 import { DailyProgress } from '../components/DailyProgress';
 import WebSwipeable from '../components/WebSwipeable';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 export default function LifeDashboard({ navigation }: any) {
+    const { colors, theme } = useTheme();
     const [tasks, setTasks] = useState<LifeTask[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [filterConstraint, setFilterConstraint] = useState<'all' | 'urgent'>('all');
@@ -59,6 +61,17 @@ export default function LifeDashboard({ navigation }: any) {
         } else {
             await StorageService.completeTask(task.id);
         }
+        loadData();
+    };
+
+    const handleSnoozeTask = async (task: LifeTask) => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const y = tomorrow.getFullYear();
+        const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const d = String(tomorrow.getDate()).padStart(2, '0');
+        const updatedTask = { ...task, dueDate: `${y}-${m}-${d}` };
+        await StorageService.updateTask(updatedTask);
         loadData();
     };
 
@@ -144,31 +157,31 @@ export default function LifeDashboard({ navigation }: any) {
     const headerHeight = 60 + insets.top;
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <LinearGradient
-                colors={Colors.dark.gradients.AppBackground as unknown as readonly [string, string, ...string[]]}
+                colors={colors.gradients.AppBackground as unknown as readonly [string, string, ...string[]]}
                 style={StyleSheet.absoluteFill}
             />
 
             <BlurView
                 intensity={80}
-                tint="dark"
-                style={[styles.fixedHeader, { paddingTop: insets.top, height: headerHeight }]}
+                tint={theme === 'dark' ? 'dark' : 'light'}
+                style={[styles.fixedHeader, { paddingTop: insets.top, height: headerHeight, backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.97)' : 'rgba(248, 250, 252, 0.97)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}
             >
                 <View style={styles.topBar}>
-                    <View style={styles.brandContainer}>
-                        <MaterialCommunityIcons name="shield-check-outline" size={20} color={Colors.dark.primary} />
-                        <Text style={styles.brandText}>DAILY ADMIN</Text>
+                    <View style={[styles.brandContainer, { backgroundColor: `${colors.primary}08`, borderColor: `${colors.primary}18` }]}>
+                        <MaterialCommunityIcons name="shield-check-outline" size={20} color={colors.primary} />
+                        <Text style={[styles.brandText, { color: colors.text }]}>DAILY ADMIN</Text>
                     </View>
                     <TouchableOpacity
                         onPress={() => navigation.navigate('Profile')}
-                        style={styles.settingsButton}
+                        style={[styles.settingsButton, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}
                     >
-                        <MaterialCommunityIcons name="account-circle" size={28} color={Colors.dark.primary} />
+                        <MaterialCommunityIcons name="account-circle" size={28} color={colors.primary} />
                     </TouchableOpacity>
                 </View>
                 <LinearGradient
-                    colors={['transparent', 'rgba(56, 189, 248, 0.08)', 'rgba(56, 189, 248, 0.15)', 'rgba(56, 189, 248, 0.08)', 'transparent']}
+                    colors={['transparent', `${colors.primary}14`, `${colors.primary}25`, `${colors.primary}14`, 'transparent']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.headerGlow}
@@ -182,8 +195,8 @@ export default function LifeDashboard({ navigation }: any) {
             >
                 <Animated.View entering={FadeInDown.delay(100).duration(600)} style={styles.headerWrapper}>
                     <View style={styles.titleContainer}>
-                        <Text style={styles.dateText}>{dateStr.toUpperCase()}</Text>
-                        <Text style={styles.greetingText}>{greeting}</Text>
+                        <Text style={[styles.dateText, { color: colors.primary }]}>{dateStr.toUpperCase()}</Text>
+                        <Text style={[styles.greetingText, { color: colors.text }]}>{greeting}</Text>
                     </View>
                 </Animated.View>
 
@@ -218,16 +231,16 @@ export default function LifeDashboard({ navigation }: any) {
 
                 <View style={styles.listSection}>
                     <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.sectionHeaderRow}>
-                        <Text style={styles.sectionTitle}>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>
                             {filterConstraint === 'urgent' ? 'Urgent Tasks' : 'Up Next'}
                         </Text>
                         {filterConstraint === 'urgent' ? (
-                            <TouchableOpacity onPress={() => setFilterConstraint('all')} style={styles.clearFilterButton}>
-                                <Text style={styles.clearFilterText}>Clear Filter</Text>
+                            <TouchableOpacity onPress={() => setFilterConstraint('all')} style={[styles.clearFilterButton, { backgroundColor: `${colors.primary}18`, borderColor: `${colors.primary}30` }]}>
+                                <Text style={[styles.clearFilterText, { color: colors.primary }]}>Clear Filter</Text>
                             </TouchableOpacity>
                         ) : (
-                            <View style={styles.pendingBadge}>
-                                <Text style={styles.countText}>{sortedPendingTasks.length} Pending</Text>
+                            <View style={[styles.pendingBadge, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                                <Text style={[styles.countText, { color: colors.textSecondary }]}>{sortedPendingTasks.length} Pending</Text>
                             </View>
                         )}
                     </Animated.View>
@@ -241,96 +254,118 @@ export default function LifeDashboard({ navigation }: any) {
                                 layout={LinearTransition.springify()}
                                 style={styles.taskRowWrapper}
                             >
-                                <WebSwipeable
-                                    ref={(ref) => {
-                                        if (ref) rowRefs.current.set(task.id, ref);
-                                    }}
-                                    onSwipeableWillOpen={() => {
-                                        [...rowRefs.current.entries()].forEach(([key, ref]) => {
-                                            if (key !== task.id && ref) ref.close();
-                                        });
-                                    }}
-                                    renderRightActions={(progress, dragX) => {
-                                        const scale = dragX.interpolate({
-                                            inputRange: [-100, 0],
-                                            outputRange: [1, 0],
-                                            extrapolate: 'clamp',
-                                        });
-                                        const opacity = progress.interpolate({
-                                            inputRange: [0, 1],
-                                            outputRange: [0, 1],
-                                        });
+                                <View style={styles.taskRowWithActions}>
+                                    <View style={styles.taskRowContent}>
+                                        <WebSwipeable
+                                            ref={(ref) => {
+                                                if (ref) rowRefs.current.set(task.id, ref);
+                                            }}
+                                            onSwipeableWillOpen={() => {
+                                                [...rowRefs.current.entries()].forEach(([key, ref]) => {
+                                                    if (key !== task.id && ref) ref.close();
+                                                });
+                                            }}
+                                            renderRightActions={(progress, dragX) => {
+                                                const scale = dragX.interpolate({
+                                                    inputRange: [-100, 0],
+                                                    outputRange: [1, 0],
+                                                    extrapolate: 'clamp',
+                                                });
+                                                const opacity = progress.interpolate({
+                                                    inputRange: [0, 1],
+                                                    outputRange: [0, 1],
+                                                });
 
-                                        return (
-                                            <TouchableOpacity
-                                                onPress={() => {
-                                                    rowRefs.current.get(task.id)?.close();
-                                                    handleDeleteTask(task);
-                                                }}
-                                                style={styles.deleteActionWrapper}
-                                            >
-                                                <RNAnimated.View style={[styles.deleteActionInner, { opacity }]}>
-                                                    <LinearGradient
-                                                        colors={['#EF4444', '#DC2626', '#B91C1C']}
-                                                        start={{ x: 0, y: 0 }}
-                                                        end={{ x: 1, y: 1 }}
-                                                        style={styles.deleteGradient}
+                                                return (
+                                                    <TouchableOpacity
+                                                        onPress={() => {
+                                                            rowRefs.current.get(task.id)?.close();
+                                                            handleDeleteTask(task);
+                                                        }}
+                                                        style={styles.deleteActionWrapper}
                                                     >
-                                                        <View style={styles.deleteIconContainer}>
-                                                            <MaterialCommunityIcons name="trash-can-outline" size={22} color="#fff" />
-                                                        </View>
-                                                        <Text style={styles.deleteText}>Delete</Text>
-                                                    </LinearGradient>
-                                                </RNAnimated.View>
-                                            </TouchableOpacity>
-                                        );
-                                    }}
-                                >
-                                    <TaskRow
-                                        task={task}
-                                        onToggle={() => handleToggleTask(task)}
-                                        onPress={() => { }}
-                                        onLongPress={() => handleDeleteTask(task)}
-                                        style={styles.taskRowInner}
-                                    />
-                                </WebSwipeable>
+                                                        <RNAnimated.View style={[styles.deleteActionInner, { opacity }]}>
+                                                            <LinearGradient
+                                                                colors={['#EF4444', '#DC2626', '#B91C1C']}
+                                                                start={{ x: 0, y: 0 }}
+                                                                end={{ x: 1, y: 1 }}
+                                                                style={styles.deleteGradient}
+                                                            >
+                                                                <View style={styles.deleteIconContainer}>
+                                                                    <MaterialCommunityIcons name="trash-can-outline" size={22} color="#fff" />
+                                                                </View>
+                                                                <Text style={styles.deleteText}>Delete</Text>
+                                                            </LinearGradient>
+                                                        </RNAnimated.View>
+                                                    </TouchableOpacity>
+                                                );
+                                            }}
+                                        >
+                                            <TaskRow
+                                                task={task}
+                                                onToggle={() => handleToggleTask(task)}
+                                                onPress={() => { }}
+                                                onLongPress={() => handleDeleteTask(task)}
+                                                style={styles.taskRowInner}
+                                            />
+                                        </WebSwipeable>
+                                    </View>
+                                    <View style={styles.quickActions}>
+                                        <TouchableOpacity
+                                            onPress={() => handleToggleTask(task)}
+                                            style={styles.quickActionButton}
+                                        >
+                                            <View style={[styles.quickActionCircle, { backgroundColor: 'rgba(74, 222, 128, 0.15)', borderColor: 'rgba(74, 222, 128, 0.3)' }]}>
+                                                <MaterialCommunityIcons name="check" size={16} color="#4ADE80" />
+                                            </View>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => handleSnoozeTask(task)}
+                                            style={styles.quickActionButton}
+                                        >
+                                            <View style={[styles.quickActionCircle, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
+                                                <MaterialCommunityIcons name="clock-outline" size={16} color="#F59E0B" />
+                                            </View>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                             </Animated.View>
                         ))
                     ) : (
                         <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.zeroStateContainer}>
                             <LinearGradient
-                                colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)']}
-                                style={styles.zeroStateCard}
+                                colors={theme === 'dark' ? ['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)'] : ['rgba(0,0,0,0.03)', 'rgba(0,0,0,0.01)']}
+                                style={[styles.zeroStateCard, { borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
                             >
-                                <View style={styles.zeroStateIconWrapper}>
-                                    <MaterialCommunityIcons name="rocket-launch-outline" size={40} color={Colors.dark.primary} />
+                                <View style={[styles.zeroStateIconWrapper, { backgroundColor: `${colors.primary}14`, borderColor: `${colors.primary}25` }]}>
+                                    <MaterialCommunityIcons name="rocket-launch-outline" size={40} color={colors.primary} />
                                 </View>
-                                <Text style={styles.zeroStateTitle}>Welcome to Daily Admin</Text>
-                                <Text style={styles.zeroStateSubtitle}>Your personal command center for life.</Text>
+                                <Text style={[styles.zeroStateTitle, { color: colors.text }]}>Welcome to Daily Admin</Text>
+                                <Text style={[styles.zeroStateSubtitle, { color: colors.textSecondary }]}>Your personal command center for life.</Text>
 
                                 <View style={styles.featureList}>
-                                    <View style={styles.featureRow}>
-                                        <MaterialCommunityIcons name="credit-card-check-outline" size={20} color={Colors.dark.textSecondary} />
-                                        <Text style={styles.featureText}>Track subscriptions & monthly bills</Text>
+                                    <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                                        <MaterialCommunityIcons name="credit-card-check-outline" size={20} color={colors.textSecondary} />
+                                        <Text style={[styles.featureText, { color: colors.text }]}>Track subscriptions & monthly bills</Text>
                                     </View>
-                                    <View style={styles.featureRow}>
-                                        <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={Colors.dark.textSecondary} />
-                                        <Text style={styles.featureText}>Manage household chores & tasks</Text>
+                                    <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                                        <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={colors.textSecondary} />
+                                        <Text style={[styles.featureText, { color: colors.text }]}>Manage household chores & tasks</Text>
                                     </View>
-                                    <View style={styles.featureRow}>
-                                        <MaterialCommunityIcons name="pill" size={20} color={Colors.dark.textSecondary} />
-                                        <Text style={styles.featureText}>Monitor daily habits & meds</Text>
+                                    <View style={[styles.featureRow, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+                                        <MaterialCommunityIcons name="pill" size={20} color={colors.textSecondary} />
+                                        <Text style={[styles.featureText, { color: colors.text }]}>Monitor daily habits & meds</Text>
                                     </View>
                                 </View>
 
                                 <View style={styles.ctaContainer}>
-                                    <Text style={styles.ctaText}>Tap </Text>
-                                    <View style={styles.plusIconSmall}>
-                                        <MaterialCommunityIcons name="plus" size={14} color="#000" />
+                                    <Text style={[styles.ctaText, { color: colors.primary }]}>Tap </Text>
+                                    <View style={[styles.plusIconSmall, { backgroundColor: colors.primary }]}>
+                                        <MaterialCommunityIcons name="plus" size={14} color="#fff" />
                                     </View>
-                                    <Text style={styles.ctaText}> below to get started</Text>
+                                    <Text style={[styles.ctaText, { color: colors.primary }]}> below to get started</Text>
                                 </View>
-                                <MaterialCommunityIcons name="arrow-down" size={24} color={Colors.dark.primary} style={styles.ctaArrow} />
+                                <MaterialCommunityIcons name="arrow-down" size={24} color={colors.primary} style={styles.ctaArrow} />
                             </LinearGradient>
                         </Animated.View>
                     )}
@@ -338,9 +373,9 @@ export default function LifeDashboard({ navigation }: any) {
                     {completedTasks.length > 0 && (
                         <View style={styles.completedSection}>
                             <View style={styles.completedHeaderRow}>
-                                <View style={styles.completedDivider} />
-                                <Text style={styles.completedSectionTitle}>Completed This Month</Text>
-                                <View style={styles.completedDivider} />
+                                <View style={[styles.completedDivider, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]} />
+                                <Text style={[styles.completedSectionTitle, { color: colors.textTertiary }]}>Completed This Month</Text>
+                                <View style={[styles.completedDivider, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]} />
                             </View>
                             {completedTasks.map((task, index) => (
                                 <Animated.View
@@ -374,7 +409,7 @@ export default function LifeDashboard({ navigation }: any) {
                             activeOpacity={1}
                             onPress={(e) => e.stopPropagation()}
                         >
-                            <View style={styles.modalCard}>
+                            <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}>
                                 <View style={styles.modalHeaderSection}>
                                     {modalConfig.isDanger ? (
                                         <View style={styles.modalIconDanger}>
@@ -382,11 +417,11 @@ export default function LifeDashboard({ navigation }: any) {
                                         </View>
                                     ) : (
                                         <View style={styles.modalIconInfo}>
-                                            <MaterialCommunityIcons name="information-variant" size={30} color={Colors.dark.primary} />
+                                            <MaterialCommunityIcons name="information-variant" size={30} color={colors.primary} />
                                         </View>
                                     )}
-                                    <Text style={styles.modalTitle}>{modalConfig.title}</Text>
-                                    <Text style={styles.modalMessage}>
+                                    <Text style={[styles.modalTitle, { color: colors.text }]}>{modalConfig.title}</Text>
+                                    <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
                                         {modalConfig.message}
                                     </Text>
                                 </View>
@@ -530,7 +565,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     progressScaleWrapper: {
-        transform: [{ scale: 0.8 }],
+        transform: [{ scale: 0.85 }],
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     listSection: {
         flex: 1,
@@ -576,6 +613,30 @@ const styles = StyleSheet.create({
     },
     taskRowInner: {
         marginBottom: 0,
+    },
+    taskRowWithActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    taskRowContent: {
+        flex: 1,
+    },
+    quickActions: {
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 8,
+        marginLeft: 10,
+    },
+    quickActionButton: {
+        padding: 2,
+    },
+    quickActionCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
     },
     deleteActionWrapper: {
         justifyContent: 'center',
