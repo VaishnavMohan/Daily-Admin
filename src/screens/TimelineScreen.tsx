@@ -61,8 +61,8 @@ export default function TimelineScreen({ navigation }: any) {
     const loadTimeline = async () => {
         const data = await StorageService.getTasks();
 
-        // Filter out daily and weekly tasks - they belong in Daily Habits section
         const timelineTasks = data.filter(task => {
+            if (task.type === 'expense') return false;
             return task.recurrence === 'monthly' ||
                 task.recurrence === 'yearly' ||
                 task.recurrence === 'once';
