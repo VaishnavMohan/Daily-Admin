@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, TextInput, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, TextInput, FlatList, KeyboardAvoidingView, Platform, Animated as RNAnimated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -12,6 +12,8 @@ import { LifeTask, TaskCategory } from '../types';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Alert } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
+import { SpendingHeatmap } from '../components/SpendingHeatmap';
 
 const { width } = Dimensions.get('window');
 
@@ -21,9 +23,47 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showMonthPicker, setShowMonthPicker] = useState(false);
 
+    // Swipeable renderRightActions
+    const renderRightActions = (progress: any, dragX: any, expense: LifeTask) => {
+        const scale = dragX.interpolate({
+            inputRange: [-100, 0],
+            outputRange: [1, 0],
+            extrapolate: 'clamp',
+        });
+        const opacity = progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 1],
+        });
+        return (
+            <RNAnimated.View style={[styles.deleteAction, { opacity, transform: [{ scale }] }]}>
+                <TouchableOpacity onPress={() => handleDeleteExpense(expense)} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+                    <MaterialCommunityIcons name="trash-can-outline" size={24} color="#fff" />
+                    <RNAnimated.Text style={styles.deleteActionText}>Delete</RNAnimated.Text>
+                </TouchableOpacity>
+            </RNAnimated.View>
+        );
+    };
+
     // View State
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [currentViewMonth, setCurrentViewMonth] = useState(new Date()); // Tracks which month we are viewing
+    const [currentViewMonth, setCurrentViewMonth] = useState(new Date());
+    const [filterRange, setFilterRange] = useState<'day' | 'month' | '3m' | '6m' | 'year'>('month');
+    const [showInsights, setShowInsights] = useState(false);
+
+    // Generic Modal State
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        confirmText?: string;
+        cancelText?: string;
+        onConfirm?: () => void;
+        isDanger?: boolean;
+        singleButton?: boolean;
+    }>({ visible: false, title: '', message: '' });
+
+    // Swipe Exclusivity
+    const rowRefs = useRef(new Map<string, Swipeable>());
 
     // Quick Add State
     const [amount, setAmount] = useState('');
@@ -45,8 +85,12 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
     useFocusEffect(
         useCallback(() => {
             loadExpenses();
-            // Reset to today when entering IF we want that behavior
-            // setSelectedDate(new Date()); 
+            return () => {
+                // Close all swipe rows on blur
+                rowRefs.current.forEach((ref) => {
+                    ref?.close();
+                });
+            };
         }, [])
     );
 
@@ -57,13 +101,12 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                 d.toISOString().split('T')[0] === selectedDate.toISOString().split('T')[0]
             );
             if (todayIndex !== -1) {
-                // Wait a tick for layout
                 setTimeout(() => {
                     dateListRef.current?.scrollToIndex({ index: todayIndex, animated: true, viewPosition: 0.5 });
                 }, 500);
             }
         }
-    }, [currentViewMonth]); // Run when switching months
+    }, [currentViewMonth]);
 
     const loadExpenses = async () => {
         const allTasks = await StorageService.getTasks();
@@ -74,13 +117,19 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
     const handleAddExpense = async () => {
         if (!amount) return;
 
+        // Format as YYYY-MM-DD using local time components to avoid timezone shift
+        const y = selectedDate.getFullYear();
+        const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const d = String(selectedDate.getDate()).padStart(2, '0');
+        const localDateString = `${y}-${m}-${d}`;
+
         const newExpense: LifeTask = {
-            id: Math.random().toString(36).substr(2, 9),
-            title: note || categories.find(c => c.key === selectedCategory)?.label || 'Expense',
+            id: Date.now().toString(),
+            title: note || categories.find(c => c.key === selectedCategory)?.label || 'Expense', // Assuming 'expenseTitle' was meant to be 'note'
+            amount: parseFloat(amount), // Assuming 'expenseAmount' was meant to be 'amount'
             category: selectedCategory,
             type: 'expense',
-            amount: parseFloat(amount),
-            dueDate: selectedDate.toISOString().split('T')[0],
+            dueDate: localDateString,
             recurrence: 'once',
             status: 'completed',
             currency: 'INR',
@@ -95,52 +144,73 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
 
     const handleExport = async () => {
         try {
-            const monthName = currentViewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            const rangeName = filterRange === 'day' ? 'Today' :
+                filterRange === 'month' ? currentViewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) :
+                    filterRange === 'year' ? currentViewMonth.getFullYear().toString() :
+                        filterRange.toUpperCase();
 
-            // Generate CSV content
             let csvContent = 'Date,Category,Description,Amount (INR)\n';
 
-            // Get relevant expenses
-            const exportData = expenses.filter(e => {
-                const d = new Date(e.dueDate);
-                return d.getMonth() === currentViewMonth.getMonth() && d.getFullYear() === currentViewMonth.getFullYear();
-            }).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()); // Sort oldest first
-
-            if (exportData.length === 0) {
-                Alert.alert("No Expenses", "There are no expenses to export for this month.");
+            if (filteredExpenses.length === 0) {
+                setModalConfig({
+                    visible: true,
+                    title: "No Expenses",
+                    message: "There are no expenses to export for this selection.",
+                    singleButton: true
+                });
                 return;
             }
 
-            exportData.forEach(item => {
-                const date = item.dueDate;
-                const category = categories.find(c => c.key === item.category)?.label || item.category;
-                const desc = item.title.replace(/,/g, ' '); // simple escape
-                const amt = item.amount;
-                csvContent += `${date},${category},${desc},${amt}\n`;
-            });
+            const expensesToExport = filteredExpenses; // Use filtered expenses for export
 
-            const fileName = `Expenses_${monthName.replace(/ /g, '_')}.csv`;
+            csvContent = "Date,Category,Title,Amount,Note\n" +
+                expensesToExport.map(e => {
+                    const date = new Date(e.dueDate).toLocaleDateString(); // Use dueDate for date
+                    const category = categories.find(c => c.key === e.category)?.label || e.category;
+                    return `${date},${category},"${e.title}",${e.amount},"${e.notes || ''}"`;
+                }).join("\n");
+
+            const fileName = `Expenses_${rangeName.replace(/ /g, '_')}.csv`;
             const fileUri = FileSystem.documentDirectory + fileName;
 
             await FileSystem.writeAsStringAsync(fileUri, csvContent);
             await Sharing.shareAsync(fileUri, {
                 mimeType: 'text/csv',
-                dialogTitle: `Export ${monthName} Expenses`
+                dialogTitle: `Export ${rangeName} Expenses`
             });
 
         } catch (error) {
             console.error(error);
-            Alert.alert("Export Failed", "Could not export data. Please try again.");
+            setModalConfig({
+                visible: true,
+                title: "Export Failed",
+                message: "Could not export data. Please try again.",
+                singleButton: true
+            });
         }
     };
 
-    // --- Date Logic ---
+    const handleDeleteExpense = (expense: LifeTask) => {
+        setModalConfig({
+            visible: true,
+            title: "Delete Expense?",
+            message: `Are you sure you want to delete "${expense.title}"? This action cannot be undone.`,
+            confirmText: "Delete",
+            isDanger: true,
+            onConfirm: async () => {
+                await StorageService.deleteTask(expense.id);
+                loadExpenses();
+                setModalConfig(prev => ({ ...prev, visible: false }));
+            }
+        });
+    };
+
+    // Date Logic Helpers
     const isCurrentMonth = useMemo(() => {
         const now = new Date();
         return currentViewMonth.getMonth() === now.getMonth() && currentViewMonth.getFullYear() === now.getFullYear();
     }, [currentViewMonth]);
 
-    // Generate Date Strip for the View Month
     const dateStrip = useMemo(() => {
         const days = [];
         const year = currentViewMonth.getFullYear();
@@ -155,17 +225,62 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
 
     const selectedDateStr = selectedDate.toISOString().split('T')[0];
 
-    // Filtered Content
-    const dayExpenses = expenses.filter(e => e.dueDate === selectedDateStr);
+    const filteredExpenses = useMemo(() => {
+        const now = new Date(); // Reference for 'current' ranges if needed, or use selectedDate/currentViewMonth
+
+        return expenses.filter(e => {
+            const date = new Date(e.dueDate);
+
+            if (filterRange === 'day') {
+                return e.dueDate === selectedDate.toISOString().split('T')[0];
+            }
+            if (filterRange === 'month') {
+                return date.getMonth() === currentViewMonth.getMonth() && date.getFullYear() === currentViewMonth.getFullYear();
+            }
+            if (filterRange === 'year') {
+                return date.getFullYear() === currentViewMonth.getFullYear();
+            }
+            if (filterRange === '3m') {
+                // Last 3 months from current view month
+                const start = new Date(currentViewMonth);
+                start.setMonth(start.getMonth() - 2); // Current + prev 2 = 3
+                start.setDate(1);
+
+                const end = new Date(currentViewMonth);
+                end.setMonth(end.getMonth() + 1);
+                end.setDate(0); // End of current month
+
+                return date >= start && date <= end;
+            }
+            if (filterRange === '6m') {
+                // Last 6 months
+                const start = new Date(currentViewMonth);
+                start.setMonth(start.getMonth() - 5);
+                start.setDate(1);
+
+                const end = new Date(currentViewMonth);
+                end.setMonth(end.getMonth() + 1);
+                end.setDate(0);
+
+                return date >= start && date <= end;
+            }
+            return false;
+        });
+    }, [expenses, filterRange, selectedDate, currentViewMonth]);
+
+    const filteredTotal = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    // Keep daily list separate (for the list below) or same? 
+    // The user wants 'filter', enabling day/month/year stats.
+    // The list below currently shows 'Day Details'. 
+    // We should probably keep the list showing Day Details selected by date strip, 
+    // OR show the list of filtered items if range is > day?
+    // For now, let's keep the list as "Day Details" (Calendar View) but update the "Total Spent" card to reflect the filter.
+
+    // We still need 'dayTotal' for the list header if we keep it.
+    const dayExpenses = expenses.filter(e => e.dueDate === selectedDate.toISOString().split('T')[0]);
     const dayTotal = dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-    // Month Stats
-    const monthExpenses = expenses.filter(e => {
-        const d = new Date(e.dueDate);
-        return d.getMonth() === currentViewMonth.getMonth() && d.getFullYear() === currentViewMonth.getFullYear();
-    });
-
-    const monthTotal = monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
     // Available Months for History
     const availableMonths = useMemo(() => {
@@ -215,26 +330,69 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                     <MaterialCommunityIcons name="chevron-down" size={20} color={Colors.dark.text} />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    onPress={() => setShowAddModal(true)}
-                    style={[styles.headerAdd, { opacity: isCurrentMonth ? 1 : 0.5 }]}
-                    disabled={!isCurrentMonth}
-                >
-                    <MaterialCommunityIcons name="plus" size={24} color="#fff" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity
+                        onPress={() => setShowInsights(true)}
+                        style={[styles.headerAdd, { backgroundColor: 'rgba(59, 130, 246, 0.2)', width: 40, height: 40 }]}
+                    >
+                        <MaterialCommunityIcons name="chart-bar" size={20} color={Colors.dark.primary} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setShowAddModal(true)}
+                        style={[styles.headerAdd, { opacity: isCurrentMonth ? 1 : 0.5 }]}
+                        disabled={!isCurrentMonth}
+                    >
+                        <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* Range Selector */}
+            <View style={styles.filterContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+                    {(['day', 'month', '3m', '6m', 'year'] as const).map((range) => (
+                        <TouchableOpacity
+                            key={range}
+                            style={[
+                                styles.filterChip,
+                                filterRange === range && { backgroundColor: Colors.dark.primary, borderColor: Colors.dark.primary }
+                            ]}
+                            onPress={() => {
+                                setFilterRange(range);
+                                // If switching to day, ensure day logic updates
+                                if (range === 'day') {
+                                    // Maybe scroll to today?
+                                }
+                            }}
+                        >
+                            <Text style={[
+                                styles.filterText,
+                                filterRange === range && { color: '#fff', fontWeight: 'bold' }
+                            ]}>
+                                {range === 'day' ? 'Today' : range === 'month' ? 'This Month' : range === 'year' ? 'Year' : range.toUpperCase()}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
             </View>
 
             {/* Total Balance Card */}
             <View style={styles.overviewContainer}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <View>
-                        <Text style={styles.monthLabel}>Total Spent</Text>
+                        <Text style={styles.monthLabel}>
+                            {filterRange === 'day' ? 'Spent Today' :
+                                filterRange === 'month' ? 'Spent in ' + currentViewMonth.toLocaleDateString('en-US', { month: 'short' }) :
+                                    filterRange === 'year' ? 'Spent in ' + currentViewMonth.getFullYear() :
+                                        'Total Spent'}
+                        </Text>
                         <Animated.Text
-                            key={monthTotal} // Animate on change
+                            key={filteredTotal} // Animate on change
                             entering={FadeInDown.springify()}
                             style={styles.monthValue}
                         >
-                            ₹{monthTotal.toLocaleString()}
+                            ₹{filteredTotal.toLocaleString()}
                         </Animated.Text>
                     </View>
 
@@ -244,16 +402,13 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                 </View>
 
-                {/* Extraordinary Category Breakdown */}
-                {monthTotal > 0 && (
+                {/* Category Breakdown */}
+                {filteredTotal > 0 && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.breakdownContainer}>
                         {(() => {
-                            const breakdown = Object.values(expenses.reduce((acc, curr) => {
-                                const d = new Date(curr.dueDate);
-                                if (d.getMonth() === currentViewMonth.getMonth() && d.getFullYear() === currentViewMonth.getFullYear()) {
-                                    if (!acc[curr.category]) acc[curr.category] = { key: curr.category, total: 0 };
-                                    acc[curr.category].total += (curr.amount || 0);
-                                }
+                            const breakdown = Object.values(filteredExpenses.reduce((acc, curr) => {
+                                if (!acc[curr.category]) acc[curr.category] = { key: curr.category, total: 0 };
+                                acc[curr.category].total += (curr.amount || 0);
                                 return acc;
                             }, {} as Record<string, { key: TaskCategory, total: number }>))
                                 .sort((a, b) => b.total - a.total);
@@ -277,6 +432,39 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                     </ScrollView>
                 )}
             </View>
+
+
+            {/* Insights Modal */}
+            <Modal
+                transparent
+                visible={showInsights}
+                animationType="fade"
+                onRequestClose={() => setShowInsights(false)}
+            >
+                <BlurView intensity={40} tint="dark" style={{ flex: 1, justifyContent: 'center', padding: 16 }}>
+                    <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowInsights(false)} />
+                    <View style={{
+                        backgroundColor: '#1E293B',
+                        borderRadius: 24,
+                        padding: 24,
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 10 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 20,
+                    }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <Text style={{ fontSize: 20, fontWeight: '700', color: '#fff' }}>Spending Insights</Text>
+                            <TouchableOpacity onPress={() => setShowInsights(false)} style={{ padding: 4 }}>
+                                <MaterialCommunityIcons name="close" size={24} color={Colors.dark.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <SpendingHeatmap expenses={expenses} days={90} />
+                    </View>
+                </BlurView>
+            </Modal>
 
             {/* Month Picker Modal */}
             <Modal
@@ -329,14 +517,39 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                         }}
                         keyExtractor={(item) => item.toISOString()}
                         renderItem={({ item: date }) => {
-                            const dStr = date.toISOString().split('T')[0];
-                            const isSelected = dStr === selectedDateStr;
+                            const toLocalISO = (d: Date) => {
+                                const offset = d.getTimezoneOffset() * 60000;
+                                return new Date(d.getTime() - offset).toISOString().split('T')[0];
+                            };
+                            const dStr = toLocalISO(date);
+                            const selectedStr = toLocalISO(selectedDate);
+                            const isSelected = dStr === selectedStr;
                             const hasData = expenses.some(e => e.dueDate === dStr);
+
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const isFuture = date > today;
 
                             return (
                                 <TouchableOpacity
-                                    style={[styles.dateItem, isSelected && styles.dateItemSelected]}
-                                    onPress={() => setSelectedDate(date)}
+                                    style={[
+                                        styles.dateItem,
+                                        isSelected && styles.dateItemSelected,
+                                        isFuture && { opacity: 0.3 }
+                                    ]}
+                                    onPress={() => {
+                                        if (isFuture) {
+                                            setModalConfig({
+                                                visible: true,
+                                                title: "Future Date",
+                                                message: "You cannot add expenses for the future yet!",
+                                                singleButton: true
+                                            });
+                                            return;
+                                        }
+                                        setSelectedDate(date);
+                                    }}
+                                    disabled={isFuture}
                                 >
                                     <Text style={[styles.dayName, isSelected && styles.dayNameSelected]}>
                                         {date.toLocaleDateString('en-US', { weekday: 'short' })}
@@ -356,6 +569,8 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
+                    {/* Heatmap moved to Modal */}
+
                     <View style={[styles.dayDetails, { minHeight: 500 }]}>
                         <View style={styles.dayHeader}>
                             <Text style={styles.dayHeaderTitle}>
@@ -366,26 +581,61 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
 
                         {dayExpenses.length > 0 ? (
                             dayExpenses.map((expense, index) => (
-                                <Animated.View
-                                    key={expense.id}
-                                    entering={FadeInDown.delay(index * 50).springify()}
-                                    style={styles.expenseRow}
-                                >
-                                    <View style={[styles.catIcon, { backgroundColor: categories.find(c => c.key === expense.category)?.color + '20' }]}>
-                                        <MaterialCommunityIcons
-                                            name={categories.find(c => c.key === expense.category)?.icon || 'cash'}
-                                            size={20}
-                                            color={categories.find(c => c.key === expense.category)?.color || '#fff'}
-                                        />
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.expenseTitle}>{expense.title}</Text>
-                                        <Text style={styles.expenseCat}>{categories.find(c => c.key === expense.category)?.label}</Text>
-                                    </View>
-                                    <View style={{ alignItems: 'flex-end' }}>
-                                        <Text style={styles.expenseAmount}>₹{expense.amount?.toLocaleString()}</Text>
-                                    </View>
-                                </Animated.View>
+                                <View key={expense.id} style={{ marginBottom: 8 }}>
+                                    <Swipeable
+                                        ref={(ref) => {
+                                            if (ref) {
+                                                rowRefs.current.set(expense.id, ref);
+                                            }
+                                        }}
+                                        onSwipeableWillOpen={() => {
+                                            [...rowRefs.current.entries()].forEach(([key, ref]) => {
+                                                if (key !== expense.id && ref) ref.close();
+                                            });
+                                        }}
+                                        renderRightActions={(progress, dragX) => {
+                                            const scale = dragX.interpolate({
+                                                inputRange: [-100, 0],
+                                                outputRange: [1, 0],
+                                                extrapolate: 'clamp',
+                                            });
+                                            return (
+                                                <TouchableOpacity
+                                                    onPress={() => {
+                                                        if (rowRefs.current.get(expense.id)) rowRefs.current.get(expense.id)?.close();
+                                                        handleDeleteExpense(expense);
+                                                    }}
+                                                    style={styles.deleteAction}
+                                                >
+                                                    <RNAnimated.View style={{ transform: [{ scale }] }}>
+                                                        <MaterialCommunityIcons name="trash-can-outline" size={24} color="#fff" />
+                                                    </RNAnimated.View>
+                                                    <RNAnimated.Text style={[styles.deleteActionText, { transform: [{ scale }] }]}>Delete</RNAnimated.Text>
+                                                </TouchableOpacity>
+                                            );
+                                        }}
+                                    >
+                                        <Animated.View
+                                            entering={FadeInDown.delay(index * 50).springify()}
+                                            style={styles.expenseRow}
+                                        >
+                                            <View style={[styles.catIcon, { backgroundColor: categories.find(c => c.key === expense.category)?.color + '20' }]}>
+                                                <MaterialCommunityIcons
+                                                    name={categories.find(c => c.key === expense.category)?.icon || 'cash'}
+                                                    size={20}
+                                                    color={categories.find(c => c.key === expense.category)?.color || '#fff'}
+                                                />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.expenseTitle}>{expense.title}</Text>
+                                                <Text style={styles.expenseCat}>{categories.find(c => c.key === expense.category)?.label}</Text>
+                                            </View>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={styles.expenseAmount}>₹{expense.amount?.toLocaleString()}</Text>
+                                            </View>
+                                        </Animated.View>
+                                    </Swipeable>
+                                </View>
                             ))
                         ) : (
                             <View style={styles.emptyDayState}>
@@ -463,6 +713,65 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                         </ScrollView>
                     </View>
                 </BlurView >
+            </Modal >
+
+            {/* Universal Glassmorphism Modal */}
+            <Modal
+                transparent
+                visible={modalConfig.visible}
+                animationType="fade"
+                onRequestClose={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+            >
+                <BlurView intensity={20} tint="dark" style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <View style={{
+                        width: '80%',
+                        backgroundColor: '#1E293B',
+                        borderRadius: 24,
+                        padding: 24,
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 10 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 20,
+                    }}>
+                        <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                            {modalConfig.isDanger ? (
+                                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(239, 68, 68, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                    <MaterialCommunityIcons name="delete-outline" size={32} color="#EF4444" />
+                                </View>
+                            ) : (
+                                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(59, 130, 246, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                    <MaterialCommunityIcons name="information-variant" size={32} color={Colors.dark.primary} />
+                                </View>
+                            )}
+                            <Text style={{ fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 8, textAlign: 'center' }}>{modalConfig.title}</Text>
+                            <Text style={{ fontSize: 14, color: Colors.dark.textSecondary, textAlign: 'center' }}>
+                                {modalConfig.message}
+                            </Text>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                            {!modalConfig.singleButton && (
+                                <TouchableOpacity
+                                    style={{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center' }}
+                                    onPress={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                                >
+                                    <Text style={{ color: '#fff', fontWeight: '600' }}>{modalConfig.cancelText || 'Cancel'}</Text>
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                                style={{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: modalConfig.isDanger ? '#EF4444' : Colors.dark.primary, alignItems: 'center' }}
+                                onPress={() => {
+                                    if (modalConfig.onConfirm) modalConfig.onConfirm();
+                                    else setModalConfig(prev => ({ ...prev, visible: false }));
+                                }}
+                            >
+                                <Text style={{ color: '#fff', fontWeight: '600' }}>{modalConfig.confirmText || 'OK'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </BlurView>
             </Modal >
         </View >
     );
@@ -607,9 +916,11 @@ const styles = StyleSheet.create({
     expenseRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.05)',
+        padding: 16,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     catIcon: {
         width: 40,
@@ -798,11 +1109,30 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
     sectionLabel: {
-        color: Colors.dark.textSecondary,
+        // ... existing
+    },
+    // Filter Chips
+    filterContainer: {
+        marginBottom: 10,
+        paddingHorizontal: 0,
+    },
+    filterScroll: {
+        paddingHorizontal: 20,
+        gap: 8,
+    },
+    filterChip: {
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        marginRight: 8,
+    },
+    filterText: {
         fontSize: 12,
         fontWeight: '600',
-        marginBottom: 8,
-        textTransform: 'uppercase',
+        color: Colors.dark.textSecondary,
     },
     exportButton: {
         flexDirection: 'row',
@@ -817,5 +1147,20 @@ const styles = StyleSheet.create({
         color: Colors.dark.primary,
         fontWeight: '600',
         fontSize: 14,
+    },
+    // Swipe Actions
+    deleteAction: {
+        backgroundColor: '#EF4444',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 70,
+        borderRadius: 16,
+        marginLeft: 8,
+    },
+    deleteActionText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 10,
+        marginTop: 4,
     },
 });

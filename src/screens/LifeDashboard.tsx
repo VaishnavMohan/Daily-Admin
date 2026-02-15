@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, RefreshControl, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, RefreshControl, Dimensions, TouchableOpacity, Modal, Animated as RNAnimated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import { LifeTask } from '../types';
 import { BentoCard } from '../components/BentoCard';
 import { TaskRow } from '../components/TaskRow';
 import { DailyProgress } from '../components/DailyProgress';
+import { Swipeable } from 'react-native-gesture-handler';
 
 const { width } = Dimensions.get('window');
 
@@ -21,10 +22,29 @@ export default function LifeDashboard({ navigation }: any) {
     const [refreshing, setRefreshing] = useState(false);
     const [filterConstraint, setFilterConstraint] = useState<'all' | 'urgent'>('all');
 
+    // Swipe & Modal State
+    const rowRefs = React.useRef(new Map<string, Swipeable>());
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        confirmText?: string;
+        cancelText?: string;
+        onConfirm?: () => void;
+        isDanger?: boolean;
+        singleButton?: boolean;
+    }>({ visible: false, title: '', message: '' });
+
     useFocusEffect(
         useCallback(() => {
             loadData();
             StatusBar.setBarStyle('light-content');
+            return () => {
+                // Close all swipe rows on blur
+                rowRefs.current.forEach((ref) => {
+                    ref?.close();
+                });
+            };
         }, [])
     );
 
@@ -42,6 +62,21 @@ export default function LifeDashboard({ navigation }: any) {
             await StorageService.completeTask(task.id);
         }
         loadData();
+    };
+
+    const handleDeleteTask = (task: LifeTask) => {
+        setModalConfig({
+            visible: true,
+            title: "Delete Task?",
+            message: `Are you sure you want to delete "${task.title}"?`,
+            confirmText: "Delete",
+            isDanger: true,
+            onConfirm: async () => {
+                await StorageService.deleteTask(task.id);
+                loadData();
+                setModalConfig(prev => ({ ...prev, visible: false }));
+            }
+        });
     };
 
     const onRefresh = () => {
@@ -62,8 +97,61 @@ export default function LifeDashboard({ navigation }: any) {
     };
     const greeting = React.useMemo(() => getGreeting(today.getHours()), [today.getHours()]); // Memoize to prevent flicker during minor updates if any
 
-    const pendingTasks = tasks.filter(t => t.status !== 'completed');
-    const completedTasks = tasks.filter(t => t.status === 'completed');
+    // -- DEBUG --
+    // -- Filter Logic -- 
+    // We want to exclude Expenses but keep Tasks (even if they are 'food' or 'shopping' related)
+    const EXPENSE_ONLY_CATEGORIES = ['food', 'transport', 'shopping', 'entertainment', 'dining', 'personal', 'travel', 'health', 'other', 'utility'];
+
+    const pendingTasksArray = tasks.filter(t => {
+        // --- STRICT WHITELIST FILTER ---
+        // Only allow explicit 'bill' or 'checklist' types.
+        // Hides 'expense', undefined types, or anything else.
+        const type = t.type ? t.type.toLowerCase() : '';
+
+        // Allowed Types Only
+        if (type !== 'bill' && type !== 'checklist') {
+            return false;
+        }
+
+        // --- STEP 2: STATUS FILTER ---
+        if (t.status === 'completed') return false;
+
+        // --- STEP 3: DATE FILTER ---
+        // Parse "YYYY-MM-DD" as local integers
+        const [y, m, d] = t.dueDate.split('-').map(Number);
+        const taskDate = new Date(y, m - 1, d); // Local time 00:00:00
+
+        // Current Month Bounds
+        const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+
+        // Show if: 
+        // 1. Due this month (>= 1st AND < next 1st)
+        // 2. Overdue (due before this month start)
+        const isThisMonthOrOverdue = taskDate < nextMonthStart;
+
+        return isThisMonthOrOverdue;
+    });
+
+    const completedTasksArray = tasks.filter(t => {
+        // --- STRICT WHITELIST FILTER ---
+        const type = t.type ? t.type.toLowerCase() : '';
+        if (type !== 'bill' && type !== 'checklist') return false;
+
+        // --- STATUS ---
+        if (t.status !== 'completed') return false;
+
+        // --- CURRENT MONTH ONLY ---
+        const [y, m, d] = t.dueDate.split('-').map(Number);
+        const taskDate = new Date(y, m - 1, d);
+        const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+
+        // Must be exactly within current month
+        return taskDate >= currentMonthStart && taskDate < nextMonthStart;
+    });
+
+    const pendingTasks = pendingTasksArray;
+    const completedTasks = completedTasksArray;
 
     // Urgent: Overdue or Due < 3 days
     const urgentTasks = pendingTasks.filter(t => {
@@ -103,7 +191,6 @@ export default function LifeDashboard({ navigation }: any) {
                 style={StyleSheet.absoluteFill}
             />
 
-            {/* --- FIXED PROFESSIONAL HEADER --- */}
             <BlurView
                 intensity={80}
                 tint="dark"
@@ -188,13 +275,53 @@ export default function LifeDashboard({ navigation }: any) {
                                 entering={FadeInDown.delay(index * 100).springify()}
                                 exiting={FadeOut}
                                 layout={LinearTransition.springify()}
+                                style={{ marginBottom: 12 }}
                             >
-                                <TaskRow
-                                    task={task}
-                                    onToggle={() => handleToggleTask(task)}
-                                    onPress={() => { }}
-                                    onLongPress={() => { }}
-                                />
+                                <Swipeable
+                                    ref={(ref) => {
+                                        if (ref) rowRefs.current.set(task.id, ref);
+                                    }}
+                                    onSwipeableWillOpen={() => {
+                                        [...rowRefs.current.entries()].forEach(([key, ref]) => {
+                                            if (key !== task.id && ref) ref.close();
+                                        });
+                                    }}
+                                    renderRightActions={(progress, dragX) => {
+                                        const scale = dragX.interpolate({
+                                            inputRange: [-100, 0],
+                                            outputRange: [1, 0],
+                                            extrapolate: 'clamp',
+                                        });
+                                        // Standard swipe width calculation for dashboard
+                                        const opacity = progress.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [0, 1],
+                                        });
+
+                                        return (
+                                            <TouchableOpacity
+                                                onPress={() => {
+                                                    rowRefs.current.get(task.id)?.close();
+                                                    handleDeleteTask(task);
+                                                }}
+                                                style={[styles.deleteAction, { opacity }]}
+                                            >
+                                                <View style={styles.deleteIconContainer}>
+                                                    <MaterialCommunityIcons name="trash-can-outline" size={24} color="#fff" />
+                                                </View>
+                                                <Text style={styles.deleteText}>Delete</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    }}
+                                >
+                                    <TaskRow
+                                        task={task}
+                                        onToggle={() => handleToggleTask(task)}
+                                        onPress={() => { }}
+                                        onLongPress={() => handleDeleteTask(task)}
+                                        style={{ marginBottom: 0 }}
+                                    />
+                                </Swipeable>
                             </Animated.View>
                         ))
                     ) : (
@@ -237,8 +364,8 @@ export default function LifeDashboard({ navigation }: any) {
                     {/* Completed Section */}
                     {completedTasks.length > 0 && (
                         <View style={{ marginTop: 24 }}>
-                            <Text style={styles.sectionTitle}>Completed Today</Text>
-                            {completedTasks.slice(0, 3).map((task, index) => (
+                            <Text style={styles.sectionTitle}>Completed This Month</Text>
+                            {completedTasks.map((task, index) => (
                                 <Animated.View
                                     key={task.id}
                                     entering={FadeInDown.delay(index * 100 + 200)}
@@ -257,7 +384,72 @@ export default function LifeDashboard({ navigation }: any) {
 
                 <View style={{ height: 100 }} />
             </ScrollView>
-        </View>
+            {/* Manual Overlay Modal (Bypassing Native Modal due to issues) */}
+            {modalConfig.visible && (
+                <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' }}
+                        onPress={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                    >
+                        <TouchableOpacity
+                            activeOpacity={1}
+                            onPress={(e) => e.stopPropagation()}
+                        >
+                            <View style={{
+                                width: width * 0.85,
+                                maxWidth: 400,
+                                backgroundColor: '#1E293B',
+                                borderRadius: 24,
+                                padding: 24,
+                                borderWidth: 1,
+                                borderColor: 'rgba(255,255,255,0.1)',
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: 10 },
+                                shadowOpacity: 0.5,
+                                shadowRadius: 20,
+                            }}>
+                                <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                                    {modalConfig.isDanger ? (
+                                        <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(239, 68, 68, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                            <MaterialCommunityIcons name="delete-outline" size={32} color="#EF4444" />
+                                        </View>
+                                    ) : (
+                                        <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(59, 130, 246, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                            <MaterialCommunityIcons name="information-variant" size={32} color={Colors.dark.primary} />
+                                        </View>
+                                    )}
+                                    <Text style={{ fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 8, textAlign: 'center' }}>{modalConfig.title}</Text>
+                                    <Text style={{ fontSize: 14, color: Colors.dark.textSecondary, textAlign: 'center' }}>
+                                        {modalConfig.message}
+                                    </Text>
+                                </View>
+
+                                <View style={{ flexDirection: 'row', gap: 12 }}>
+                                    {!modalConfig.singleButton && (
+                                        <TouchableOpacity
+                                            style={{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center' }}
+                                            onPress={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+                                        >
+                                            <Text style={{ color: '#fff', fontWeight: '600' }}>{modalConfig.cancelText || 'Cancel'}</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity
+                                        style={{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: modalConfig.isDanger ? '#EF4444' : Colors.dark.primary, alignItems: 'center' }}
+                                        onPress={() => {
+                                            if (modalConfig.onConfirm) modalConfig.onConfirm();
+                                            else setModalConfig(prev => ({ ...prev, visible: false }));
+                                        }}
+                                    >
+                                        <Text style={{ color: '#fff', fontWeight: '600' }}>{modalConfig.confirmText || 'OK'}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+                    </TouchableOpacity>
+                </View>
+            )}
+        </View >
     );
 }
 
@@ -271,7 +463,7 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 100,
+        zIndex: 1000,
         paddingHorizontal: 24,
         overflow: 'hidden', // Clip content
         borderBottomWidth: 1,
@@ -444,4 +636,22 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginHorizontal: 4,
     },
+    // Dashboard Swipe Actions
+    deleteAction: {
+        backgroundColor: '#EF4444',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 70,
+        height: '100%',
+        borderRadius: 16,
+        marginLeft: 8,
+    },
+    deleteIconContainer: {
+        marginBottom: 4,
+    },
+    deleteText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '600',
+    }
 });

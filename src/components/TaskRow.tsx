@@ -10,6 +10,7 @@ interface TaskRowProps {
     onToggle: () => void;
     onPress: () => void;
     onLongPress?: () => void;
+    style?: any;
 }
 
 const getCategoryColor = (category: TaskCategory) => {
@@ -37,7 +38,7 @@ const getCategoryIcon = (category: TaskCategory, customIcon?: string) => {
     }
 };
 
-export const TaskRow: React.FC<TaskRowProps> = ({ task, onToggle, onPress, onLongPress }) => {
+export const TaskRow: React.FC<TaskRowProps> = ({ task, onToggle, onPress, onLongPress, style }) => {
     const isCompleted = task.status === 'completed';
     const isOverdue = task.status === 'overdue' || (new Date(task.dueDate) < new Date() && !isCompleted && new Date(task.dueDate).toDateString() !== new Date().toDateString());
     const categoryColor = getCategoryColor(task.category);
@@ -63,7 +64,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({ task, onToggle, onPress, onLon
             onPress={onPress}
             onLongPress={onLongPress}
             activeOpacity={0.8}
-            style={[styles.wrapper, isCompleted && styles.wrapperCompleted]}
+            style={[styles.wrapper, isCompleted && styles.wrapperCompleted, style]}
         >
             <BlurView intensity={20} tint="dark" style={[styles.container, isOverdue && !isCompleted && styles.overdueBorder]}>
                 {/* Left: Icon - Minimal */}
