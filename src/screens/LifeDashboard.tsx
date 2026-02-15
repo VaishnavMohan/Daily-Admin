@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, RefreshControl, Dimensions, TouchableOpacity, Modal, Animated as RNAnimated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, RefreshControl, Dimensions, TouchableOpacity, Modal, Animated as RNAnimated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -22,7 +22,6 @@ export default function LifeDashboard({ navigation }: any) {
     const [refreshing, setRefreshing] = useState(false);
     const [filterConstraint, setFilterConstraint] = useState<'all' | 'urgent'>('all');
 
-    // Swipe & Modal State
     const rowRefs = React.useRef(new Map<string, any>());
     const [modalConfig, setModalConfig] = useState<{
         visible: boolean;
@@ -40,7 +39,6 @@ export default function LifeDashboard({ navigation }: any) {
             loadData();
             StatusBar.setBarStyle('light-content');
             return () => {
-                // Close all swipe rows on blur
                 rowRefs.current.forEach((ref) => {
                     ref?.close();
                 });
@@ -84,76 +82,43 @@ export default function LifeDashboard({ navigation }: any) {
         loadData();
     };
 
-    // --- Derived Data for Hybrid Layout ---
     const today = new Date();
     const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
 
     const getGreeting = (hour: number) => {
         if (hour < 5) return 'Late Night Hustle';
-        if (hour < 12) return ['Good Morning', 'Rise & Grind', 'Carpe Diem'][Math.floor(Math.random() * 3)];
-        if (hour < 17) return ['Good Afternoon', 'Keep Pushing', 'Stay Focused'][Math.floor(Math.random() * 3)];
-        if (hour < 22) return ['Good Evening', 'Wrap It Up', 'Rest & Recharge'][Math.floor(Math.random() * 3)];
+        if (hour < 12) return 'Good Morning';
+        if (hour < 17) return 'Good Afternoon';
+        if (hour < 22) return 'Good Evening';
         return 'Time to Sleep';
     };
-    const greeting = React.useMemo(() => getGreeting(today.getHours()), [today.getHours()]); // Memoize to prevent flicker during minor updates if any
+    const currentHour = today.getHours();
+    const greeting = React.useMemo(() => getGreeting(currentHour), [currentHour]);
 
-    // -- DEBUG --
-    // -- Filter Logic -- 
-    // We want to exclude Expenses but keep Tasks (even if they are 'food' or 'shopping' related)
-    const EXPENSE_ONLY_CATEGORIES = ['food', 'transport', 'shopping', 'entertainment', 'dining', 'personal', 'travel', 'health', 'other', 'utility'];
-
-    const pendingTasksArray = tasks.filter(t => {
-        // --- STRICT WHITELIST FILTER ---
-        // Only allow explicit 'bill' or 'checklist' types.
-        // Hides 'expense', undefined types, or anything else.
+    const pendingTasks = tasks.filter(t => {
         const type = t.type ? t.type.toLowerCase() : '';
-
-        // Allowed Types Only
         if (type !== 'bill' && type !== 'checklist') {
             return false;
         }
-
-        // --- STEP 2: STATUS FILTER ---
         if (t.status === 'completed') return false;
-
-        // --- STEP 3: DATE FILTER ---
-        // Parse "YYYY-MM-DD" as local integers
         const [y, m, d] = t.dueDate.split('-').map(Number);
-        const taskDate = new Date(y, m - 1, d); // Local time 00:00:00
-
-        // Current Month Bounds
+        const taskDate = new Date(y, m - 1, d);
         const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-
-        // Show if: 
-        // 1. Due this month (>= 1st AND < next 1st)
-        // 2. Overdue (due before this month start)
         const isThisMonthOrOverdue = taskDate < nextMonthStart;
-
         return isThisMonthOrOverdue;
     });
 
-    const completedTasksArray = tasks.filter(t => {
-        // --- STRICT WHITELIST FILTER ---
+    const completedTasks = tasks.filter(t => {
         const type = t.type ? t.type.toLowerCase() : '';
         if (type !== 'bill' && type !== 'checklist') return false;
-
-        // --- STATUS ---
         if (t.status !== 'completed') return false;
-
-        // --- CURRENT MONTH ONLY ---
         const [y, m, d] = t.dueDate.split('-').map(Number);
         const taskDate = new Date(y, m - 1, d);
         const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
         const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-
-        // Must be exactly within current month
         return taskDate >= currentMonthStart && taskDate < nextMonthStart;
     });
 
-    const pendingTasks = pendingTasksArray;
-    const completedTasks = completedTasksArray;
-
-    // Urgent: Overdue or Due < 3 days
     const urgentTasks = pendingTasks.filter(t => {
         const diff = (new Date(t.dueDate).getTime() - today.getTime()) / (1000 * 3600 * 24);
         return diff <= 3;
@@ -161,28 +126,22 @@ export default function LifeDashboard({ navigation }: any) {
 
     const financeTasks = pendingTasks.filter(t => t.category === 'finance');
 
-    // Determine which tasks to show based on filter
     const visiblePendingTasks = filterConstraint === 'urgent' ? urgentTasks : pendingTasks;
 
-    // Sort logic for the list: Urgent first, then by date
     const sortedPendingTasks = [...visiblePendingTasks].sort((a, b) => {
         const dateA = new Date(a.dueDate).getTime();
         const dateB = new Date(b.dueDate).getTime();
-
-        // Prioritize Urgent
         const isUrgentA = urgentTasks.includes(a);
         const isUrgentB = urgentTasks.includes(b);
-
         if (isUrgentA && !isUrgentB) return -1;
         if (!isUrgentA && isUrgentB) return 1;
-
         return dateA - dateB;
     });
 
     const totalStatsCount = pendingTasks.length + completedTasks.length;
 
     const insets = useSafeAreaInsets();
-    const headerHeight = 60 + insets.top; // Approximate header height
+    const headerHeight = 60 + insets.top;
 
     return (
         <View style={styles.container}>
@@ -208,14 +167,19 @@ export default function LifeDashboard({ navigation }: any) {
                         <MaterialCommunityIcons name="account-circle" size={28} color={Colors.dark.primary} />
                     </TouchableOpacity>
                 </View>
+                <LinearGradient
+                    colors={['transparent', 'rgba(56, 189, 248, 0.08)', 'rgba(56, 189, 248, 0.15)', 'rgba(56, 189, 248, 0.08)', 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.headerGlow}
+                />
             </BlurView>
 
             <ScrollView
-                contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight + 20 }]}
+                contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight + 24 }]}
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.dark.primary} />}
             >
-                {/* Greeting Section (First in scroll) */}
                 <Animated.View entering={FadeInDown.delay(100).duration(600)} style={styles.headerWrapper}>
                     <View style={styles.titleContainer}>
                         <Text style={styles.dateText}>{dateStr.toUpperCase()}</Text>
@@ -223,10 +187,9 @@ export default function LifeDashboard({ navigation }: any) {
                     </View>
                 </Animated.View>
 
-                {/* --- BENTO HEADER (Stats) --- */}
                 <View style={styles.gridContainer}>
                     <View style={styles.row}>
-                        <Animated.View entering={FadeInDown.delay(200).duration(600)} style={{ flex: 1, marginRight: 8 }}>
+                        <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.bentoCardLeft}>
                             <BentoCard
                                 title="Needs Attention"
                                 subtitle="Overdue & Due Soon"
@@ -235,17 +198,17 @@ export default function LifeDashboard({ navigation }: any) {
                                 colSpan={1}
                                 variant={filterConstraint === 'urgent' ? 'highlight' : (urgentTasks.length > 0 ? 'highlight' : 'standard')}
                                 onPress={() => setFilterConstraint(filterConstraint === 'urgent' ? 'all' : 'urgent')}
-                                style={filterConstraint === 'urgent' ? { borderWidth: 2, borderColor: Colors.dark.gold } : {}}
+                                style={filterConstraint === 'urgent' ? styles.bentoCardActive : undefined}
                             />
                         </Animated.View>
 
-                        <Animated.View entering={FadeInDown.delay(300).duration(600)} style={{ flex: 1, marginLeft: 8 }}>
+                        <Animated.View entering={FadeInDown.delay(300).duration(600)} style={styles.bentoCardRight}>
                             <BentoCard
                                 colSpan={1}
                                 variant="standard"
-                                style={{ padding: 0, justifyContent: 'center', alignItems: 'center' }}
+                                style={styles.progressCard}
                             >
-                                <View style={{ transform: [{ scale: 0.8 }] }}>
+                                <View style={styles.progressScaleWrapper}>
                                     <DailyProgress total={totalStatsCount} completed={completedTasks.length} size={100} />
                                 </View>
                             </BentoCard>
@@ -253,18 +216,19 @@ export default function LifeDashboard({ navigation }: any) {
                     </View>
                 </View>
 
-                {/* --- TASK LIST SECTION --- */}
                 <View style={styles.listSection}>
                     <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.sectionHeaderRow}>
                         <Text style={styles.sectionTitle}>
                             {filterConstraint === 'urgent' ? 'Urgent Tasks' : 'Up Next'}
                         </Text>
                         {filterConstraint === 'urgent' ? (
-                            <TouchableOpacity onPress={() => setFilterConstraint('all')}>
-                                <Text style={[styles.countText, { color: Colors.dark.primary }]}>Clear Filter</Text>
+                            <TouchableOpacity onPress={() => setFilterConstraint('all')} style={styles.clearFilterButton}>
+                                <Text style={styles.clearFilterText}>Clear Filter</Text>
                             </TouchableOpacity>
                         ) : (
-                            <Text style={styles.countText}>{sortedPendingTasks.length} Pending</Text>
+                            <View style={styles.pendingBadge}>
+                                <Text style={styles.countText}>{sortedPendingTasks.length} Pending</Text>
+                            </View>
                         )}
                     </Animated.View>
 
@@ -275,7 +239,7 @@ export default function LifeDashboard({ navigation }: any) {
                                 entering={FadeInDown.delay(index * 100).springify()}
                                 exiting={FadeOut}
                                 layout={LinearTransition.springify()}
-                                style={{ marginBottom: 12 }}
+                                style={styles.taskRowWrapper}
                             >
                                 <WebSwipeable
                                     ref={(ref) => {
@@ -292,7 +256,6 @@ export default function LifeDashboard({ navigation }: any) {
                                             outputRange: [1, 0],
                                             extrapolate: 'clamp',
                                         });
-                                        // Standard swipe width calculation for dashboard
                                         const opacity = progress.interpolate({
                                             inputRange: [0, 1],
                                             outputRange: [0, 1],
@@ -304,12 +267,21 @@ export default function LifeDashboard({ navigation }: any) {
                                                     rowRefs.current.get(task.id)?.close();
                                                     handleDeleteTask(task);
                                                 }}
-                                                style={[styles.deleteAction, { opacity }]}
+                                                style={styles.deleteActionWrapper}
                                             >
-                                                <View style={styles.deleteIconContainer}>
-                                                    <MaterialCommunityIcons name="trash-can-outline" size={24} color="#fff" />
-                                                </View>
-                                                <Text style={styles.deleteText}>Delete</Text>
+                                                <RNAnimated.View style={[styles.deleteActionInner, { opacity }]}>
+                                                    <LinearGradient
+                                                        colors={['#EF4444', '#DC2626', '#B91C1C']}
+                                                        start={{ x: 0, y: 0 }}
+                                                        end={{ x: 1, y: 1 }}
+                                                        style={styles.deleteGradient}
+                                                    >
+                                                        <View style={styles.deleteIconContainer}>
+                                                            <MaterialCommunityIcons name="trash-can-outline" size={22} color="#fff" />
+                                                        </View>
+                                                        <Text style={styles.deleteText}>Delete</Text>
+                                                    </LinearGradient>
+                                                </RNAnimated.View>
                                             </TouchableOpacity>
                                         );
                                     }}
@@ -319,7 +291,7 @@ export default function LifeDashboard({ navigation }: any) {
                                         onToggle={() => handleToggleTask(task)}
                                         onPress={() => { }}
                                         onLongPress={() => handleDeleteTask(task)}
-                                        style={{ marginBottom: 0 }}
+                                        style={styles.taskRowInner}
                                     />
                                 </WebSwipeable>
                             </Animated.View>
@@ -327,10 +299,12 @@ export default function LifeDashboard({ navigation }: any) {
                     ) : (
                         <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.zeroStateContainer}>
                             <LinearGradient
-                                colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+                                colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)']}
                                 style={styles.zeroStateCard}
                             >
-                                <MaterialCommunityIcons name="rocket-launch-outline" size={48} color={Colors.dark.primary} style={{ marginBottom: 16 }} />
+                                <View style={styles.zeroStateIconWrapper}>
+                                    <MaterialCommunityIcons name="rocket-launch-outline" size={40} color={Colors.dark.primary} />
+                                </View>
                                 <Text style={styles.zeroStateTitle}>Welcome to Daily Admin</Text>
                                 <Text style={styles.zeroStateSubtitle}>Your personal command center for life.</Text>
 
@@ -356,15 +330,18 @@ export default function LifeDashboard({ navigation }: any) {
                                     </View>
                                     <Text style={styles.ctaText}> below to get started</Text>
                                 </View>
-                                <MaterialCommunityIcons name="arrow-down" size={24} color={Colors.dark.primary} style={{ marginTop: 8, opacity: 0.8 }} />
+                                <MaterialCommunityIcons name="arrow-down" size={24} color={Colors.dark.primary} style={styles.ctaArrow} />
                             </LinearGradient>
                         </Animated.View>
                     )}
 
-                    {/* Completed Section */}
                     {completedTasks.length > 0 && (
-                        <View style={{ marginTop: 24 }}>
-                            <Text style={styles.sectionTitle}>Completed This Month</Text>
+                        <View style={styles.completedSection}>
+                            <View style={styles.completedHeaderRow}>
+                                <View style={styles.completedDivider} />
+                                <Text style={styles.completedSectionTitle}>Completed This Month</Text>
+                                <View style={styles.completedDivider} />
+                            </View>
                             {completedTasks.map((task, index) => (
                                 <Animated.View
                                     key={task.id}
@@ -382,66 +359,58 @@ export default function LifeDashboard({ navigation }: any) {
                     )}
                 </View>
 
-                <View style={{ height: 100 }} />
+                <View style={styles.bottomSpacer} />
             </ScrollView>
-            {/* Manual Overlay Modal (Bypassing Native Modal due to issues) */}
+
             {modalConfig.visible && (
-                <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
+                <View style={styles.modalOverlay}>
+                    <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
                     <TouchableOpacity
                         activeOpacity={1}
-                        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' }}
+                        style={styles.modalBackdrop}
                         onPress={() => setModalConfig(prev => ({ ...prev, visible: false }))}
                     >
                         <TouchableOpacity
                             activeOpacity={1}
                             onPress={(e) => e.stopPropagation()}
                         >
-                            <View style={{
-                                width: width * 0.85,
-                                maxWidth: 400,
-                                backgroundColor: '#1E293B',
-                                borderRadius: 24,
-                                padding: 24,
-                                borderWidth: 1,
-                                borderColor: 'rgba(255,255,255,0.1)',
-                                shadowColor: "#000",
-                                shadowOffset: { width: 0, height: 10 },
-                                shadowOpacity: 0.5,
-                                shadowRadius: 20,
-                            }}>
-                                <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                            <View style={styles.modalCard}>
+                                <View style={styles.modalHeaderSection}>
                                     {modalConfig.isDanger ? (
-                                        <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(239, 68, 68, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
-                                            <MaterialCommunityIcons name="delete-outline" size={32} color="#EF4444" />
+                                        <View style={styles.modalIconDanger}>
+                                            <MaterialCommunityIcons name="delete-outline" size={30} color="#EF4444" />
                                         </View>
                                     ) : (
-                                        <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(59, 130, 246, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
-                                            <MaterialCommunityIcons name="information-variant" size={32} color={Colors.dark.primary} />
+                                        <View style={styles.modalIconInfo}>
+                                            <MaterialCommunityIcons name="information-variant" size={30} color={Colors.dark.primary} />
                                         </View>
                                     )}
-                                    <Text style={{ fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 8, textAlign: 'center' }}>{modalConfig.title}</Text>
-                                    <Text style={{ fontSize: 14, color: Colors.dark.textSecondary, textAlign: 'center' }}>
+                                    <Text style={styles.modalTitle}>{modalConfig.title}</Text>
+                                    <Text style={styles.modalMessage}>
                                         {modalConfig.message}
                                     </Text>
                                 </View>
 
-                                <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <View style={styles.modalButtonRow}>
                                     {!modalConfig.singleButton && (
                                         <TouchableOpacity
-                                            style={{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center' }}
+                                            style={styles.modalCancelButton}
                                             onPress={() => setModalConfig(prev => ({ ...prev, visible: false }))}
                                         >
-                                            <Text style={{ color: '#fff', fontWeight: '600' }}>{modalConfig.cancelText || 'Cancel'}</Text>
+                                            <Text style={styles.modalCancelText}>{modalConfig.cancelText || 'Cancel'}</Text>
                                         </TouchableOpacity>
                                     )}
                                     <TouchableOpacity
-                                        style={{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: modalConfig.isDanger ? '#EF4444' : Colors.dark.primary, alignItems: 'center' }}
+                                        style={[
+                                            styles.modalConfirmButton,
+                                            modalConfig.isDanger ? styles.modalConfirmDanger : styles.modalConfirmPrimary
+                                        ]}
                                         onPress={() => {
                                             if (modalConfig.onConfirm) modalConfig.onConfirm();
                                             else setModalConfig(prev => ({ ...prev, visible: false }));
                                         }}
                                     >
-                                        <Text style={{ color: '#fff', fontWeight: '600' }}>{modalConfig.confirmText || 'OK'}</Text>
+                                        <Text style={styles.modalConfirmText}>{modalConfig.confirmText || 'OK'}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -449,7 +418,7 @@ export default function LifeDashboard({ navigation }: any) {
                     </TouchableOpacity>
                 </View>
             )}
-        </View >
+        </View>
     );
 }
 
@@ -465,84 +434,102 @@ const styles = StyleSheet.create({
         right: 0,
         zIndex: 1000,
         paddingHorizontal: 24,
-        overflow: 'hidden', // Clip content
-        borderBottomWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
-        justifyContent: 'center', // Center vertical
+        overflow: 'hidden',
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(255,255,255,0.06)',
+        justifyContent: 'center',
     },
-    safeArea: {
-        flex: 1,
-    },
-    scrollContent: {
-        paddingHorizontal: 24,
-        paddingBottom: 120, // Bottom Tab safe area
-    },
-    headerWrapper: {
-        marginBottom: 24,
-        // No top margin needed as padding is handled by ScrollView
+    headerGlow: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 2,
     },
     topBar: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        height: '100%', // Fill the fixed header
-        paddingBottom: 8, // Adjust for visual alignment
+        height: '100%',
+        paddingBottom: 8,
     },
     brandContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        backgroundColor: 'rgba(255,255,255,0.03)',
+        gap: 10,
+        backgroundColor: 'rgba(56, 189, 248, 0.04)',
         paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 20,
+        paddingHorizontal: 14,
+        borderRadius: 24,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: 'rgba(56, 189, 248, 0.1)',
     },
     brandText: {
-        fontSize: 14,
-        fontWeight: '800', // Heavy bold
+        fontSize: 13,
+        fontWeight: '800',
         color: Colors.dark.text,
-        letterSpacing: 1.5,
+        letterSpacing: 2,
     },
     settingsButton: {
-        width: 40,
-        height: 40,
+        width: 42,
+        height: 42,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 21,
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
     },
-    titleContainer: {
-        // paddingHorizontal: 4, // Align with content
+    scrollContent: {
+        paddingHorizontal: 24,
+        paddingBottom: 120,
     },
+    headerWrapper: {
+        marginBottom: 28,
+    },
+    titleContainer: {},
     dateText: {
-        color: Colors.dark.primary, // Pop color
-        fontSize: 13,
-        fontWeight: '700',
-        letterSpacing: 1.5,
-        marginBottom: 6,
+        color: Colors.dark.primary,
+        fontSize: 12,
+        fontWeight: '600',
+        letterSpacing: 2.5,
+        marginBottom: 8,
         textTransform: 'uppercase',
+        opacity: 0.9,
     },
     greetingText: {
         color: Colors.dark.text,
-        fontSize: 32,
-        fontWeight: '300', // Elegant thin
-        letterSpacing: -1,
-        lineHeight: 40,
+        fontSize: 34,
+        fontWeight: '200',
+        letterSpacing: -0.5,
+        lineHeight: 42,
     },
-    // REMOVED OLD STYLES
-    /*
-    headerContainer: { ... },
-    profileImageContainer: { ... },
-    */
     gridContainer: {
-        marginBottom: 32,
+        marginBottom: 36,
     },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        flexWrap: 'wrap',
+    },
+    bentoCardLeft: {
+        flex: 1,
+        marginRight: 8,
+    },
+    bentoCardRight: {
+        flex: 1,
+        marginLeft: 8,
+    },
+    bentoCardActive: {
+        borderWidth: 1.5,
+        borderColor: Colors.dark.gold,
+    },
+    progressCard: {
+        padding: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    progressScaleWrapper: {
+        transform: [{ scale: 0.8 }],
     },
     listSection: {
         flex: 1,
@@ -551,46 +538,100 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 20,
     },
     sectionTitle: {
         color: Colors.dark.text,
-        fontSize: 18,
+        fontSize: 20,
+        fontWeight: '700',
+        letterSpacing: 0.3,
+    },
+    clearFilterButton: {
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 20,
+        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(56, 189, 248, 0.2)',
+    },
+    clearFilterText: {
+        color: Colors.dark.primary,
+        fontSize: 13,
         fontWeight: '600',
-        letterSpacing: 0.5,
+    },
+    pendingBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.04)',
     },
     countText: {
         color: Colors.dark.textSecondary,
         fontSize: 13,
         fontWeight: '500',
     },
-    emptyState: {
-        paddingVertical: 40,
+    taskRowWrapper: {
+        marginBottom: 10,
+    },
+    taskRowInner: {
+        marginBottom: 0,
+    },
+    deleteActionWrapper: {
+        justifyContent: 'center',
         alignItems: 'center',
+        width: 76,
+        marginLeft: 10,
     },
-    emptyText: {
-        color: Colors.dark.textSecondary,
-        fontSize: 14,
-        fontStyle: 'italic',
+    deleteActionInner: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 16,
+        overflow: 'hidden',
     },
-    // NEW ZERO STATE STYLES
+    deleteGradient: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 16,
+    },
+    deleteIconContainer: {
+        marginBottom: 4,
+    },
+    deleteText: {
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
     zeroStateContainer: {
         marginTop: 20,
         paddingHorizontal: 4,
     },
     zeroStateCard: {
-        borderRadius: 24,
-        padding: 32,
+        borderRadius: 28,
+        padding: 36,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.08)',
     },
+    zeroStateIconWrapper: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: 'rgba(56, 189, 248, 0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(56, 189, 248, 0.15)',
+    },
     zeroStateTitle: {
         color: Colors.dark.text,
         fontSize: 22,
-        fontWeight: 'bold',
+        fontWeight: '700',
         marginBottom: 8,
         textAlign: 'center',
+        letterSpacing: 0.3,
     },
     zeroStateSubtitle: {
         color: Colors.dark.textSecondary,
@@ -601,16 +642,18 @@ const styles = StyleSheet.create({
     },
     featureList: {
         width: '100%',
-        gap: 16,
+        gap: 12,
         marginBottom: 32,
     },
     featureRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 14,
         backgroundColor: 'rgba(255,255,255,0.03)',
-        padding: 12,
-        borderRadius: 12,
+        padding: 14,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.04)',
     },
     featureText: {
         color: Colors.dark.text,
@@ -628,30 +671,152 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     plusIconSmall: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
+        width: 22,
+        height: 22,
+        borderRadius: 11,
         backgroundColor: Colors.dark.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginHorizontal: 4,
     },
-    // Dashboard Swipe Actions
-    deleteAction: {
-        backgroundColor: '#EF4444',
+    ctaArrow: {
+        marginTop: 8,
+        opacity: 0.7,
+    },
+    completedSection: {
+        marginTop: 32,
+    },
+    completedHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        gap: 12,
+    },
+    completedDivider: {
+        flex: 1,
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    completedSectionTitle: {
+        color: Colors.dark.textTertiary,
+        fontSize: 13,
+        fontWeight: '600',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+    bottomSpacer: {
+        height: 100,
+    },
+    modalOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 9999,
+        elevation: 9999,
+    },
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
         justifyContent: 'center',
         alignItems: 'center',
-        width: 70,
-        height: '100%',
-        borderRadius: 16,
-        marginLeft: 8,
     },
-    deleteIconContainer: {
-        marginBottom: 4,
+    modalCard: {
+        width: width * 0.85,
+        maxWidth: 400,
+        backgroundColor: '#1E293B',
+        borderRadius: 28,
+        padding: 28,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 16 },
+        shadowOpacity: 0.6,
+        shadowRadius: 32,
     },
-    deleteText: {
+    modalHeaderSection: {
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    modalIconDanger: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: 'rgba(239, 68, 68, 0.12)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.2)',
+    },
+    modalIconInfo: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: 'rgba(56, 189, 248, 0.12)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(56, 189, 248, 0.2)',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
         color: '#fff',
-        fontSize: 12,
+        marginBottom: 8,
+        textAlign: 'center',
+        letterSpacing: 0.2,
+    },
+    modalMessage: {
+        fontSize: 14,
+        color: Colors.dark.textSecondary,
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    modalButtonRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    modalCancelButton: {
+        flex: 1,
+        paddingVertical: 15,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
+    },
+    modalCancelText: {
+        color: '#fff',
         fontWeight: '600',
-    }
+        fontSize: 15,
+    },
+    modalConfirmButton: {
+        flex: 1,
+        paddingVertical: 15,
+        borderRadius: 16,
+        alignItems: 'center',
+    },
+    modalConfirmDanger: {
+        backgroundColor: '#EF4444',
+    },
+    modalConfirmPrimary: {
+        backgroundColor: Colors.dark.primary,
+    },
+    modalConfirmText: {
+        color: '#fff',
+        fontWeight: '700',
+        fontSize: 15,
+        letterSpacing: 0.3,
+    },
+    safeArea: {
+        flex: 1,
+    },
+    emptyState: {
+        paddingVertical: 40,
+        alignItems: 'center',
+    },
+    emptyText: {
+        color: Colors.dark.textSecondary,
+        fontSize: 14,
+        fontStyle: 'italic',
+    },
 });

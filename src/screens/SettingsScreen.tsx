@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '../constants/Colors';
 import { Button } from '../components/Button';
 import { StorageService } from '../services/StorageService';
 import { NotificationService } from '../services/NotificationService';
 
 export const SettingsScreen = ({ navigation }: any) => {
+    const insets = useSafeAreaInsets();
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [frequency, setFrequency] = useState<'off' | 'due-only' | 'urgent-due' | '3-day' | '5-day'>('urgent-due');
     const [isLoading, setIsLoading] = useState(false);
@@ -37,7 +40,6 @@ export const SettingsScreen = ({ navigation }: any) => {
 
             await StorageService.saveSettings(settings);
 
-            // Reschedule all notifications with new settings
             const cards = await StorageService.getTasks();
             await NotificationService.rescheduleAll(cards, settings);
 
@@ -58,9 +60,25 @@ export const SettingsScreen = ({ navigation }: any) => {
             <TouchableOpacity
                 style={[styles.optionCard, selected && styles.optionCardSelected]}
                 onPress={() => setFrequency(value)}
+                activeOpacity={0.7}
             >
-                <View style={styles.radioOuter}>
-                    {selected && <View style={styles.radioInner} />}
+                {selected && (
+                    <LinearGradient
+                        colors={['rgba(56, 189, 248, 0.1)', 'rgba(56, 189, 248, 0.03)']}
+                        style={StyleSheet.absoluteFill}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    />
+                )}
+                <View style={[styles.radioOuter, selected && styles.radioOuterSelected]}>
+                    {selected && (
+                        <LinearGradient
+                            colors={[Colors.dark.primary, '#0EA5E9']}
+                            style={styles.radioInner}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                        />
+                    )}
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
@@ -75,84 +93,100 @@ export const SettingsScreen = ({ navigation }: any) => {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={[Colors.dark.background, '#0f172a']}
+                colors={Colors.dark.gradients.AppBackground as any}
                 style={StyleSheet.absoluteFill}
             />
-            <SafeAreaView style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={styles.content}>
-                    <View style={styles.header}>
+            <View style={{ flex: 1, paddingTop: insets.top }}>
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <Animated.View entering={FadeInDown.delay(50).springify()} style={styles.header}>
                         <Text style={styles.headerTitle}>Settings</Text>
                         <Text style={styles.subHeader}>Configure your notification preferences</Text>
-                    </View>
+                    </Animated.View>
 
-                    <View style={styles.section}>
-                        <View style={styles.toggleRow}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.toggleLabel}>Enable Notifications</Text>
-                                <Text style={styles.toggleDescription}>
-                                    Receive reminders for upcoming bills
-                                </Text>
+                    <Animated.View entering={FadeInDown.delay(100).springify()}>
+                        <LinearGradient
+                            colors={[Colors.dark.glass.medium, 'rgba(15, 23, 42, 0.5)']}
+                            style={styles.section}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                        >
+                            <View style={styles.toggleRow}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.toggleLabel}>Enable Notifications</Text>
+                                    <Text style={styles.toggleDescription}>
+                                        Receive reminders for upcoming bills
+                                    </Text>
+                                </View>
+                                <Switch
+                                    value={notificationsEnabled}
+                                    onValueChange={setNotificationsEnabled}
+                                    trackColor={{ false: Colors.dark.border, true: Colors.dark.primary }}
+                                    thumbColor="#ffffff"
+                                />
                             </View>
-                            <Switch
-                                value={notificationsEnabled}
-                                onValueChange={setNotificationsEnabled}
-                                trackColor={{ false: Colors.dark.border, true: Colors.dark.primary }}
-                                thumbColor="#ffffff"
-                            />
-                        </View>
-                    </View>
+                        </LinearGradient>
+                    </Animated.View>
 
                     {notificationsEnabled && (
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Notification Frequency</Text>
+                        <Animated.View entering={FadeInDown.delay(150).springify()}>
+                            <LinearGradient
+                                colors={[Colors.dark.glass.medium, 'rgba(15, 23, 42, 0.5)']}
+                                style={styles.section}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 1 }}
+                            >
+                                <Text style={styles.sectionTitle}>Notification Frequency</Text>
 
-                            <FrequencyOption
-                                value="off"
-                                label="Off"
-                                description="No notifications (manual tracking)"
-                            />
+                                <FrequencyOption
+                                    value="off"
+                                    label="Off"
+                                    description="No notifications (manual tracking)"
+                                />
 
-                            <FrequencyOption
-                                value="due-only"
-                                label="Due Date Only"
-                                description="Single reminder on the due date (9 AM)"
-                            />
+                                <FrequencyOption
+                                    value="due-only"
+                                    label="Due Date Only"
+                                    description="Single reminder on the due date (9 AM)"
+                                />
 
-                            <FrequencyOption
-                                value="urgent-due"
-                                label="Urgent + Due"
-                                description="1 day before (11 AM) + due date (9 AM)"
-                            />
+                                <FrequencyOption
+                                    value="urgent-due"
+                                    label="Urgent + Due"
+                                    description="1 day before (11 AM) + due date (9 AM)"
+                                />
 
-                            <FrequencyOption
-                                value="3-day"
-                                label="3-Day Plan"
-                                description="3 days, 1 day before + due date"
-                            />
+                                <FrequencyOption
+                                    value="3-day"
+                                    label="3-Day Plan"
+                                    description="3 days, 1 day before + due date"
+                                />
 
-                            <FrequencyOption
-                                value="5-day"
-                                label="5-Day Plan"
-                                description="5, 3, 1 days before + due date"
-                            />
-                        </View>
+                                <FrequencyOption
+                                    value="5-day"
+                                    label="5-Day Plan"
+                                    description="5, 3, 1 days before + due date"
+                                />
+                            </LinearGradient>
+                        </Animated.View>
                     )}
 
-                    <Button
-                        label={isLoading ? "Saving..." : "Save Settings"}
-                        onPress={handleSave}
-                        isLoading={isLoading}
-                        style={{ marginTop: 24 }}
-                    />
+                    <Animated.View entering={FadeInDown.delay(200).springify()}>
+                        <Button
+                            label={isLoading ? "Saving..." : "Save Settings"}
+                            onPress={handleSave}
+                            isLoading={isLoading}
+                            style={{ marginTop: 24 }}
+                        />
 
-                    <Button
-                        label="Cancel"
-                        onPress={() => navigation.goBack()}
-                        variant="secondary"
-                        style={{ marginTop: 12 }}
-                    />
+                        <Button
+                            label="Cancel"
+                            onPress={() => navigation.goBack()}
+                            variant="secondary"
+                            style={{ marginTop: 12 }}
+                        />
+                    </Animated.View>
                 </ScrollView>
-            </SafeAreaView>
+            </View>
         </View>
     );
 };
@@ -164,35 +198,39 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 24,
+        paddingBottom: 100,
     },
     header: {
-        marginTop: 20,
-        marginBottom: 30,
+        marginTop: 16,
+        marginBottom: 28,
     },
     headerTitle: {
-        fontSize: 32,
-        color: Colors.dark.primary,
-        fontWeight: 'bold',
-        letterSpacing: 0.5,
+        fontSize: 34,
+        color: Colors.dark.white,
+        fontWeight: '800',
+        letterSpacing: -1,
     },
     subHeader: {
-        fontSize: 16,
+        fontSize: 15,
         color: Colors.dark.textSecondary,
         marginTop: 4,
+        fontWeight: '500',
     },
     section: {
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        borderRadius: 24,
+        borderRadius: 22,
         padding: 20,
         borderWidth: 1,
-        borderColor: Colors.dark.border,
+        borderColor: Colors.dark.glass.border,
         marginBottom: 20,
+        overflow: 'hidden',
     },
     sectionTitle: {
-        fontSize: 18,
-        color: Colors.dark.text,
-        fontWeight: '600',
+        fontSize: 13,
+        color: Colors.dark.textTertiary,
+        fontWeight: '700',
         marginBottom: 16,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     },
     toggleRow: {
         flexDirection: 'row',
@@ -202,7 +240,7 @@ const styles = StyleSheet.create({
     toggleLabel: {
         fontSize: 18,
         color: Colors.dark.text,
-        fontWeight: '600',
+        fontWeight: '700',
     },
     toggleDescription: {
         fontSize: 14,
@@ -214,42 +252,45 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         borderRadius: 16,
-        borderWidth: 2,
-        borderColor: Colors.dark.border,
-        marginBottom: 12,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255,255,255,0.08)',
+        marginBottom: 10,
         backgroundColor: 'rgba(255,255,255,0.02)',
+        overflow: 'hidden',
+        position: 'relative',
     },
     optionCardSelected: {
-        borderColor: Colors.dark.primary,
-        backgroundColor: 'rgba(255, 215, 0, 0.05)',
+        borderColor: `${Colors.dark.primary}60`,
     },
     radioOuter: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
+        width: 22,
+        height: 22,
+        borderRadius: 11,
         borderWidth: 2,
-        borderColor: Colors.dark.border,
-        marginRight: 12,
+        borderColor: 'rgba(255,255,255,0.15)',
+        marginRight: 14,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    radioOuterSelected: {
+        borderColor: Colors.dark.primary,
     },
     radioInner: {
         width: 12,
         height: 12,
         borderRadius: 6,
-        backgroundColor: Colors.dark.primary,
     },
     optionLabel: {
         fontSize: 16,
         color: Colors.dark.text,
         fontWeight: '600',
-        marginBottom: 4,
+        marginBottom: 3,
     },
     optionLabelSelected: {
         color: Colors.dark.primary,
     },
     optionDescription: {
-        fontSize: 14,
+        fontSize: 13,
         color: Colors.dark.textSecondary,
     },
 });

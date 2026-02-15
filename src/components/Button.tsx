@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ViewStyle, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../constants/Colors';
 
@@ -37,10 +37,13 @@ export const Button = ({ label, onPress, isLoading, variant = 'primary', style }
             style={style}
         >
             <LinearGradient
-                colors={[Colors.dark.gold, '#AA8811']} // Gold -> Darker Gold
+                colors={[Colors.dark.primary, '#0EA5E9']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={styles.gradient}
+                style={[styles.gradient, Platform.select({
+                    web: { boxShadow: '0 4px 20px rgba(56, 189, 248, 0.3)' } as any,
+                    default: {},
+                })]}
             >
                 {isLoading ? (
                     <ActivityIndicator color={Colors.dark.white} />
@@ -54,31 +57,31 @@ export const Button = ({ label, onPress, isLoading, variant = 'primary', style }
 
 const styles = StyleSheet.create({
     gradient: {
-        borderRadius: 12,
-        paddingVertical: 14,
+        borderRadius: 16,
+        paddingVertical: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: Colors.dark.primary, // Gold Shadow
+        shadowColor: Colors.dark.primary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
-        shadowRadius: 10,
+        shadowRadius: 12,
         elevation: 8,
     },
     label: {
-        color: '#000', // Black text on Gold
+        color: '#FFFFFF',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '700',
         letterSpacing: 0.5,
         textTransform: 'uppercase',
     },
     secondaryButton: {
-        borderRadius: 12,
-        paddingVertical: 14,
+        borderRadius: 16,
+        paddingVertical: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.05)', // Glassy
+        backgroundColor: Colors.dark.glass.medium,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: Colors.dark.glass.border,
     },
     secondaryLabel: {
         color: Colors.dark.white,

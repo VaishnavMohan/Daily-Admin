@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255,255,255,0.05)',
     },
     cardTitle: {
-        color: Colors.dark.gray,
+        color: Colors.dark.textSecondary,
         fontSize: 14,
         textTransform: 'uppercase',
         letterSpacing: 1,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     statusLabel: {
-        color: Colors.dark.gray,
+        color: Colors.dark.textSecondary,
         fontSize: 14,
     },
     statusValue: {
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
     },
     historyText: {
-        color: Colors.dark.gray,
+        color: Colors.dark.textSecondary,
         fontSize: 14,
         textAlign: 'center',
     },

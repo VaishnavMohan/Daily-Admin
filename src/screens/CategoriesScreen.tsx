@@ -1,7 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, FlatList, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '../constants/Colors';
 import { TaskCategory } from '../types';
 
@@ -25,36 +28,38 @@ const CATEGORIES: CategoryOption[] = [
 
 import { GlassCard } from '../components/GlassCard';
 
-// ... (imports remain)
-
 export default function CategoriesScreen({ navigation }: any) {
-    const renderItem = ({ item }: { item: CategoryOption }) => (
-        <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('CategoryDetail', { category: item.id })}
-            style={{ marginBottom: 16 }}
-        >
-            <GlassCard variant="medium" style={styles.cardContainer}>
-                <LinearGradient
-                    colors={[`${item.color}10`, 'transparent']}
-                    style={StyleSheet.absoluteFill}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                />
-                <View style={styles.cardContent}>
-                    <View style={[styles.iconContainer, { backgroundColor: `${item.color}20`, borderColor: `${item.color}40` }]}>
-                        <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
+    const insets = useSafeAreaInsets();
+
+    const renderItem = ({ item, index }: { item: CategoryOption; index: number }) => (
+        <Animated.View entering={FadeInDown.delay(80 * index).springify()}>
+            <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('CategoryDetail', { category: item.id })}
+                style={{ marginBottom: 14 }}
+            >
+                <GlassCard variant="medium" style={styles.cardContainer}>
+                    <LinearGradient
+                        colors={[`${item.color}15`, `${item.color}05`, 'transparent']}
+                        style={StyleSheet.absoluteFill}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    />
+                    <View style={styles.cardContent}>
+                        <View style={[styles.iconContainer, { backgroundColor: `${item.color}20`, borderColor: `${item.color}40` }]}>
+                            <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
+                        </View>
+                        <View style={styles.textContainer}>
+                            <Text style={[styles.categoryTitle, { color: Colors.dark.white }]}>{item.label}</Text>
+                            <Text style={styles.categoryDesc}>{item.description}</Text>
+                        </View>
+                        <View style={[styles.arrowContainer, { backgroundColor: `${item.color}15`, borderColor: `${item.color}25` }]}>
+                            <MaterialCommunityIcons name="chevron-right" size={18} color={item.color} />
+                        </View>
                     </View>
-                    <View style={styles.textContainer}>
-                        <Text style={[styles.categoryTitle, { color: Colors.dark.white }]}>{item.label}</Text>
-                        <Text style={styles.categoryDesc}>{item.description}</Text>
-                    </View>
-                    <View style={[styles.arrowContainer, { backgroundColor: Colors.dark.glass.light }]}>
-                        <MaterialCommunityIcons name="chevron-right" size={20} color={Colors.dark.glass.textSecondary} />
-                    </View>
-                </View>
-            </GlassCard>
-        </TouchableOpacity>
+                </GlassCard>
+            </TouchableOpacity>
+        </Animated.View>
     );
 
     return (
@@ -63,10 +68,21 @@ export default function CategoriesScreen({ navigation }: any) {
                 colors={Colors.dark.gradients.AppBackground as any}
                 style={StyleSheet.absoluteFill}
             />
-            <SafeAreaView style={styles.safeArea}>
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Categories</Text>
-                    <Text style={styles.subHeader}>Manage your life areas</Text>
+            <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+                <View style={styles.headerWrapper}>
+                    <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+                    <LinearGradient
+                        colors={['rgba(56, 189, 248, 0.08)', 'transparent']}
+                        style={StyleSheet.absoluteFill}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    />
+                    <View style={styles.header}>
+                        <Animated.View entering={FadeInDown.delay(50).springify()}>
+                            <Text style={styles.headerTitle}>Categories</Text>
+                            <Text style={styles.subHeader}>Manage your life areas</Text>
+                        </Animated.View>
+                    </View>
                 </View>
 
                 <FlatList
@@ -76,7 +92,7 @@ export default function CategoriesScreen({ navigation }: any) {
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                 />
-            </SafeAreaView>
+            </View>
         </View>
     );
 }
@@ -88,12 +104,17 @@ const styles = StyleSheet.create({
     },
     safeArea: {
         flex: 1,
-        paddingTop: Platform.OS === 'android' ? 40 : 0,
+    },
+    headerWrapper: {
+        overflow: 'hidden',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.06)',
+        position: 'relative',
     },
     header: {
         paddingHorizontal: 24,
-        paddingBottom: 24,
-        paddingTop: 10,
+        paddingBottom: 20,
+        paddingTop: 14,
     },
     headerTitle: {
         fontSize: 34,
@@ -102,29 +123,31 @@ const styles = StyleSheet.create({
         letterSpacing: -1,
     },
     subHeader: {
-        fontSize: 16,
+        fontSize: 15,
         color: Colors.dark.textSecondary,
         marginTop: 4,
+        fontWeight: '500',
     },
     listContent: {
         padding: 24,
-        paddingTop: 0,
+        paddingTop: 20,
         paddingBottom: 100,
     },
     cardContainer: {
-        borderRadius: 24,
+        borderRadius: 22,
         borderWidth: 1,
         borderColor: Colors.dark.glass.border,
+        overflow: 'hidden',
     },
     cardContent: {
-        padding: 20,
+        padding: 18,
         flexDirection: 'row',
         alignItems: 'center',
     },
     iconContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: 20,
+        width: 54,
+        height: 54,
+        borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
@@ -136,7 +159,8 @@ const styles = StyleSheet.create({
     categoryTitle: {
         fontSize: 18,
         fontWeight: '700',
-        marginBottom: 4,
+        marginBottom: 3,
+        letterSpacing: -0.3,
     },
     categoryDesc: {
         fontSize: 13,
@@ -144,10 +168,11 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     arrowContainer: {
-        width: 32,
-        height: 32,
+        width: 34,
+        height: 34,
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
     }
 });

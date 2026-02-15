@@ -44,18 +44,19 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     input: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 10,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: Colors.dark.border, // Gray 200
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        fontSize: 15,
-        color: Colors.dark.text,
+        borderColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        fontSize: 16,
+        color: '#fff',
     },
     inputFocused: {
-        borderColor: Colors.dark.primary, // Brand Blue
+        borderColor: Colors.dark.primary,
         borderWidth: 1.5,
+        backgroundColor: 'rgba(56, 189, 248, 0.05)',
     },
     inputError: {
         borderColor: Colors.dark.danger,

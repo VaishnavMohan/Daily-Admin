@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, TextInput, FlatList, KeyboardAvoidingView, Platform, Animated as RNAnimated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, FlatList, KeyboardAvoidingView, Platform, Animated as RNAnimated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -11,7 +11,6 @@ import { StorageService } from '../services/StorageService';
 import { LifeTask, TaskCategory } from '../types';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { Alert } from 'react-native';
 import WebSwipeable from '../components/WebSwipeable';
 import { SpendingHeatmap } from '../components/SpendingHeatmap';
 
@@ -36,7 +35,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
         });
         return (
             <RNAnimated.View style={[styles.deleteAction, { opacity, transform: [{ scale }] }]}>
-                <TouchableOpacity onPress={() => handleDeleteExpense(expense)} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+                <TouchableOpacity onPress={() => handleDeleteExpense(expense)} style={styles.deleteActionInner}>
                     <MaterialCommunityIcons name="trash-can-outline" size={24} color="#fff" />
                     <RNAnimated.Text style={styles.deleteActionText}>Delete</RNAnimated.Text>
                 </TouchableOpacity>
@@ -322,13 +321,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
 
             {/* Custom Header with Safe Area */}
             <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => navigation.navigate('Dashboard')}
-                >
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.dark.textSecondary} />
-                    <Text style={styles.backText}>Dashboard</Text>
-                </TouchableOpacity>
+                <View style={styles.headerSpacer} />
 
                 {/* Month Selector Title */}
                 <TouchableOpacity
@@ -339,10 +332,10 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                     <MaterialCommunityIcons name="chevron-down" size={20} color={Colors.dark.text} />
                 </TouchableOpacity>
 
-                <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={styles.headerActions}>
                     <TouchableOpacity
                         onPress={() => setShowInsights(true)}
-                        style={[styles.headerAdd, { backgroundColor: 'rgba(59, 130, 246, 0.2)', width: 40, height: 40 }]}
+                        style={styles.headerInsightBtn}
                     >
                         <MaterialCommunityIcons name="chart-bar" size={20} color={Colors.dark.primary} />
                     </TouchableOpacity>
@@ -352,7 +345,12 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                         style={[styles.headerAdd, { opacity: isCurrentMonth ? 1 : 0.5 }]}
                         disabled={!isCurrentMonth}
                     >
-                        <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+                        <LinearGradient
+                            colors={['#38BDF8', '#0EA5E9']}
+                            style={styles.headerAddGradient}
+                        >
+                            <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+                        </LinearGradient>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -363,10 +361,6 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                     {(['day', 'month', '3m', '6m', 'year'] as const).map((range) => (
                         <TouchableOpacity
                             key={range}
-                            style={[
-                                styles.filterChip,
-                                filterRange === range && { backgroundColor: Colors.dark.primary, borderColor: Colors.dark.primary }
-                            ]}
                             onPress={() => {
                                 setFilterRange(range);
                                 // If switching to day, ensure day logic updates
@@ -375,71 +369,92 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                                 }
                             }}
                         >
-                            <Text style={[
-                                styles.filterText,
-                                filterRange === range && { color: '#fff', fontWeight: 'bold' }
-                            ]}>
-                                {range === 'day' ? 'Today' : range === 'month' ? 'This Month' : range === 'year' ? 'Year' : range.toUpperCase()}
-                            </Text>
+                            {filterRange === range ? (
+                                <LinearGradient
+                                    colors={['#38BDF8', '#0EA5E9']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.filterChipActive}
+                                >
+                                    <Text style={styles.filterTextActive}>
+                                        {range === 'day' ? 'Today' : range === 'month' ? 'This Month' : range === 'year' ? 'Year' : range.toUpperCase()}
+                                    </Text>
+                                </LinearGradient>
+                            ) : (
+                                <View style={styles.filterChip}>
+                                    <Text style={styles.filterText}>
+                                        {range === 'day' ? 'Today' : range === 'month' ? 'This Month' : range === 'year' ? 'Year' : range.toUpperCase()}
+                                    </Text>
+                                </View>
+                            )}
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
             </View>
 
             {/* Total Balance Card */}
-            <View style={styles.overviewContainer}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <View>
-                        <Text style={styles.monthLabel}>
-                            {filterRange === 'day' ? 'Spent Today' :
-                                filterRange === 'month' ? 'Spent in ' + currentViewMonth.toLocaleDateString('en-US', { month: 'short' }) :
-                                    filterRange === 'year' ? 'Spent in ' + currentViewMonth.getFullYear() :
-                                        'Total Spent'}
-                        </Text>
-                        <Animated.Text
-                            key={filteredTotal} // Animate on change
-                            entering={FadeInDown.springify()}
-                            style={styles.monthValue}
-                        >
-                            ₹{filteredTotal.toLocaleString()}
-                        </Animated.Text>
+            <View style={styles.overviewWrapper}>
+                <LinearGradient
+                    colors={['rgba(56,189,248,0.25)', 'rgba(14,165,233,0.08)', 'rgba(15,23,42,0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.overviewGradientBorder}
+                >
+                    <View style={styles.overviewContainer}>
+                        <View style={styles.overviewRow}>
+                            <View>
+                                <Text style={styles.monthLabel}>
+                                    {filterRange === 'day' ? 'Spent Today' :
+                                        filterRange === 'month' ? 'Spent in ' + currentViewMonth.toLocaleDateString('en-US', { month: 'short' }) :
+                                            filterRange === 'year' ? 'Spent in ' + currentViewMonth.getFullYear() :
+                                                'Total Spent'}
+                                </Text>
+                                <Animated.Text
+                                    key={filteredTotal} // Animate on change
+                                    entering={FadeInDown.springify()}
+                                    style={styles.monthValue}
+                                >
+                                    ₹{filteredTotal.toLocaleString()}
+                                </Animated.Text>
+                            </View>
+
+                            <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
+                                <MaterialCommunityIcons name="export-variant" size={18} color={Colors.dark.primary} />
+                                <Text style={styles.exportText}>Export</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Category Breakdown */}
+                        {filteredTotal > 0 && (
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.breakdownContainer}>
+                                {(() => {
+                                    const breakdown = Object.values(filteredExpenses.reduce((acc, curr) => {
+                                        if (!acc[curr.category]) acc[curr.category] = { key: curr.category, total: 0 };
+                                        acc[curr.category].total += (curr.amount || 0);
+                                        return acc;
+                                    }, {} as Record<string, { key: TaskCategory, total: number }>))
+                                        .sort((a, b) => b.total - a.total);
+
+                                    return breakdown.map((item, index) => {
+                                        const cat = categories.find(c => c.key === item.key);
+                                        if (!cat) return null;
+                                        return (
+                                            <Animated.View
+                                                key={item.key}
+                                                entering={FadeInDown.delay(index * 100 + 200)}
+                                                style={[styles.breakdownItem, { backgroundColor: cat.color + '15', borderColor: cat.color + '30' }]}
+                                            >
+                                                <MaterialCommunityIcons name={cat.icon} size={16} color={cat.color} />
+                                                <Text style={[styles.breakdownText, { color: cat.color }]}>{cat.label}</Text>
+                                                <Text style={styles.breakdownAmount}>₹{item.total.toLocaleString()}</Text>
+                                            </Animated.View>
+                                        );
+                                    });
+                                })()}
+                            </ScrollView>
+                        )}
                     </View>
-
-                    <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
-                        <MaterialCommunityIcons name="export-variant" size={20} color={Colors.dark.primary} />
-                        <Text style={styles.exportText}>Export</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Category Breakdown */}
-                {filteredTotal > 0 && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.breakdownContainer}>
-                        {(() => {
-                            const breakdown = Object.values(filteredExpenses.reduce((acc, curr) => {
-                                if (!acc[curr.category]) acc[curr.category] = { key: curr.category, total: 0 };
-                                acc[curr.category].total += (curr.amount || 0);
-                                return acc;
-                            }, {} as Record<string, { key: TaskCategory, total: number }>))
-                                .sort((a, b) => b.total - a.total);
-
-                            return breakdown.map((item, index) => {
-                                const cat = categories.find(c => c.key === item.key);
-                                if (!cat) return null;
-                                return (
-                                    <Animated.View
-                                        key={item.key}
-                                        entering={FadeInDown.delay(index * 100 + 200)}
-                                        style={[styles.breakdownItem, { backgroundColor: cat.color + '15', borderColor: cat.color + '30' }]}
-                                    >
-                                        <MaterialCommunityIcons name={cat.icon} size={16} color={cat.color} />
-                                        <Text style={[styles.breakdownText, { color: cat.color }]}>{cat.label}</Text>
-                                        <Text style={styles.breakdownAmount}>₹{item.total.toLocaleString()}</Text>
-                                    </Animated.View>
-                                );
-                            });
-                        })()}
-                    </ScrollView>
-                )}
+                </LinearGradient>
             </View>
 
 
@@ -450,23 +465,22 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                 animationType="fade"
                 onRequestClose={() => setShowInsights(false)}
             >
-                <BlurView intensity={40} tint="dark" style={{ flex: 1, justifyContent: 'center', padding: 16 }}>
+                <BlurView intensity={40} tint="dark" style={styles.insightsOverlay}>
                     <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowInsights(false)} />
-                    <View style={{
-                        backgroundColor: '#1E293B',
-                        borderRadius: 24,
-                        padding: 24,
-                        borderWidth: 1,
-                        borderColor: 'rgba(255,255,255,0.1)',
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 10 },
-                        shadowOpacity: 0.5,
-                        shadowRadius: 20,
-                    }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <Text style={{ fontSize: 20, fontWeight: '700', color: '#fff' }}>Spending Insights</Text>
-                            <TouchableOpacity onPress={() => setShowInsights(false)} style={{ padding: 4 }}>
-                                <MaterialCommunityIcons name="close" size={24} color={Colors.dark.textSecondary} />
+                    <View style={styles.insightsCard}>
+                        <LinearGradient
+                            colors={['rgba(56,189,248,0.12)', 'rgba(30,41,59,0)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.insightsGlow}
+                        />
+                        <View style={styles.insightsHeader}>
+                            <View style={styles.insightsTitleRow}>
+                                <MaterialCommunityIcons name="chart-bar" size={22} color={Colors.dark.primary} />
+                                <Text style={styles.insightsTitle}>Spending Insights</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setShowInsights(false)} style={styles.insightsCloseBtn}>
+                                <MaterialCommunityIcons name="close" size={22} color={Colors.dark.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
@@ -493,7 +507,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                             >
                                 <Text style={[
                                     styles.pickerItemText,
-                                    date.getMonth() === currentViewMonth.getMonth() && { color: Colors.dark.primary, fontWeight: 'bold' }
+                                    date.getMonth() === currentViewMonth.getMonth() && styles.pickerItemActive
                                 ]}>
                                     {date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                                 </Text>
@@ -507,7 +521,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
             </Modal>
 
             {/* Content Area */}
-            <View style={{ flex: 1 }}>
+            <View style={styles.contentArea}>
 
                 {/* Date Strip */}
                 <View style={styles.calendarContainer}>
@@ -516,7 +530,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                         data={dateStrip}
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingHorizontal: 20 }}
+                        contentContainerStyle={styles.dateStripContent}
                         initialNumToRender={15}
                         onScrollToIndexFailed={info => {
                             const wait = new Promise(resolve => setTimeout(resolve, 500));
@@ -540,8 +554,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                                 <TouchableOpacity
                                     style={[
                                         styles.dateItem,
-                                        isSelected && styles.dateItemSelected,
-                                        isFuture && { opacity: 0.3 }
+                                        isFuture && styles.dateItemFuture
                                     ]}
                                     onPress={() => {
                                         if (isFuture) {
@@ -557,13 +570,29 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                                     }}
                                     disabled={isFuture}
                                 >
-                                    <Text style={[styles.dayName, isSelected && styles.dayNameSelected]}>
-                                        {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                                    </Text>
-                                    <Text style={[styles.dayNumber, isSelected && styles.dayNumberSelected]}>
-                                        {date.getDate()}
-                                    </Text>
-                                    {hasData && !isSelected && <View style={styles.dot} />}
+                                    {isSelected ? (
+                                        <LinearGradient
+                                            colors={['#38BDF8', '#0EA5E9']}
+                                            style={styles.dateItemSelectedGradient}
+                                        >
+                                            <Text style={styles.dayNameSelected}>
+                                                {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                                            </Text>
+                                            <Text style={styles.dayNumberSelected}>
+                                                {date.getDate()}
+                                            </Text>
+                                        </LinearGradient>
+                                    ) : (
+                                        <>
+                                            <Text style={styles.dayName}>
+                                                {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                                            </Text>
+                                            <Text style={styles.dayNumber}>
+                                                {date.getDate()}
+                                            </Text>
+                                            {hasData && <View style={styles.dot} />}
+                                        </>
+                                    )}
                                 </TouchableOpacity>
                             );
                         }}
@@ -586,70 +615,86 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                         </View>
 
                         {dayExpenses.length > 0 ? (
-                            dayExpenses.map((expense, index) => (
-                                <View key={expense.id} style={{ marginBottom: 8 }}>
-                                    <WebSwipeable
-                                        ref={(ref) => {
-                                            if (ref) {
-                                                rowRefs.current.set(expense.id, ref);
-                                            }
-                                        }}
-                                        onSwipeableWillOpen={() => {
-                                            [...rowRefs.current.entries()].forEach(([key, ref]) => {
-                                                if (key !== expense.id && ref) ref.close();
-                                            });
-                                        }}
-                                        renderRightActions={(progress, dragX) => {
-                                            const scale = dragX.interpolate({
-                                                inputRange: [-100, 0],
-                                                outputRange: [1, 0],
-                                                extrapolate: 'clamp',
-                                            });
-                                            return (
-                                                <TouchableOpacity
-                                                    onPress={() => {
-                                                        if (rowRefs.current.get(expense.id)) rowRefs.current.get(expense.id)?.close();
-                                                        handleDeleteExpense(expense);
-                                                    }}
-                                                    style={styles.deleteAction}
-                                                >
-                                                    <RNAnimated.View style={{ transform: [{ scale }] }}>
-                                                        <MaterialCommunityIcons name="trash-can-outline" size={24} color="#fff" />
-                                                    </RNAnimated.View>
-                                                    <RNAnimated.Text style={[styles.deleteActionText, { transform: [{ scale }] }]}>Delete</RNAnimated.Text>
-                                                </TouchableOpacity>
-                                            );
-                                        }}
-                                    >
-                                        <Animated.View
-                                            entering={FadeInDown.delay(index * 50).springify()}
-                                            style={styles.expenseRow}
+                            dayExpenses.map((expense, index) => {
+                                const cat = categories.find(c => c.key === expense.category);
+                                const catColor = cat?.color || '#fff';
+                                return (
+                                    <View key={expense.id} style={styles.expenseRowWrapper}>
+                                        <WebSwipeable
+                                            ref={(ref) => {
+                                                if (ref) {
+                                                    rowRefs.current.set(expense.id, ref);
+                                                }
+                                            }}
+                                            onSwipeableWillOpen={() => {
+                                                [...rowRefs.current.entries()].forEach(([key, ref]) => {
+                                                    if (key !== expense.id && ref) ref.close();
+                                                });
+                                            }}
+                                            renderRightActions={(progress, dragX) => {
+                                                const scale = dragX.interpolate({
+                                                    inputRange: [-100, 0],
+                                                    outputRange: [1, 0],
+                                                    extrapolate: 'clamp',
+                                                });
+                                                return (
+                                                    <TouchableOpacity
+                                                        onPress={() => {
+                                                            if (rowRefs.current.get(expense.id)) rowRefs.current.get(expense.id)?.close();
+                                                            handleDeleteExpense(expense);
+                                                        }}
+                                                        style={styles.deleteAction}
+                                                    >
+                                                        <RNAnimated.View style={{ transform: [{ scale }] }}>
+                                                            <MaterialCommunityIcons name="trash-can-outline" size={24} color="#fff" />
+                                                        </RNAnimated.View>
+                                                        <RNAnimated.Text style={[styles.deleteActionText, { transform: [{ scale }] }]}>Delete</RNAnimated.Text>
+                                                    </TouchableOpacity>
+                                                );
+                                            }}
                                         >
-                                            <View style={[styles.catIcon, { backgroundColor: categories.find(c => c.key === expense.category)?.color + '20' }]}>
-                                                <MaterialCommunityIcons
-                                                    name={categories.find(c => c.key === expense.category)?.icon || 'cash'}
-                                                    size={20}
-                                                    color={categories.find(c => c.key === expense.category)?.color || '#fff'}
-                                                />
-                                            </View>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={styles.expenseTitle}>{expense.title}</Text>
-                                                <Text style={styles.expenseCat}>{categories.find(c => c.key === expense.category)?.label}</Text>
-                                            </View>
-                                            <View style={{ alignItems: 'flex-end' }}>
-                                                <Text style={styles.expenseAmount}>₹{expense.amount?.toLocaleString()}</Text>
-                                            </View>
-                                        </Animated.View>
-                                    </WebSwipeable>
-                                </View>
-                            ))
+                                            <Animated.View
+                                                entering={FadeInDown.delay(index * 50).springify()}
+                                                style={styles.expenseRow}
+                                            >
+                                                <View style={[styles.expenseAccent, { backgroundColor: catColor }]} />
+                                                <View style={[styles.catIcon, { backgroundColor: catColor + '18' }]}>
+                                                    <MaterialCommunityIcons
+                                                        name={cat?.icon || 'cash'}
+                                                        size={20}
+                                                        color={catColor}
+                                                    />
+                                                </View>
+                                                <View style={styles.expenseInfo}>
+                                                    <Text style={styles.expenseTitle}>{expense.title}</Text>
+                                                    <Text style={styles.expenseCat}>{cat?.label}</Text>
+                                                </View>
+                                                <View style={styles.expenseAmountWrap}>
+                                                    <Text style={styles.expenseAmount}>₹{expense.amount?.toLocaleString()}</Text>
+                                                </View>
+                                            </Animated.View>
+                                        </WebSwipeable>
+                                    </View>
+                                );
+                            })
                         ) : (
                             <View style={styles.emptyDayState}>
-                                <MaterialCommunityIcons name="timeline-text-outline" size={48} color="rgba(255,255,255,0.1)" />
-                                <Text style={styles.emptyDayText}>No activity on this day</Text>
+                                <View style={styles.emptyIconWrap}>
+                                    <MaterialCommunityIcons name="receipt" size={40} color="rgba(56,189,248,0.3)" />
+                                </View>
+                                <Text style={styles.emptyDayTitle}>No expenses yet</Text>
+                                <Text style={styles.emptyDayText}>Nothing recorded on this day</Text>
                                 {isCurrentMonth && (
-                                    <TouchableOpacity style={styles.addTodayButton} onPress={() => setShowAddModal(true)}>
-                                        <Text style={styles.addTodayText}>Add Expense</Text>
+                                    <TouchableOpacity onPress={() => setShowAddModal(true)}>
+                                        <LinearGradient
+                                            colors={['#38BDF8', '#0EA5E9']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 0 }}
+                                            style={styles.addTodayButton}
+                                        >
+                                            <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+                                            <Text style={styles.addTodayText}>Add Expense</Text>
+                                        </LinearGradient>
                                     </TouchableOpacity>
                                 )}
                             </View>
@@ -668,10 +713,16 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
             >
                 <BlurView intensity={40} tint="dark" style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
+                        <LinearGradient
+                            colors={['rgba(56,189,248,0.08)', 'rgba(30,41,59,0)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.modalGlow}
+                        />
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Add Expense</Text>
-                            <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                                <MaterialCommunityIcons name="close-circle" size={30} color={Colors.dark.textSecondary} />
+                            <TouchableOpacity onPress={() => setShowAddModal(false)} style={styles.modalCloseBtn}>
+                                <MaterialCommunityIcons name="close" size={22} color={Colors.dark.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
@@ -683,7 +734,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                                 <TextInput
                                     style={styles.amountInput}
                                     placeholder="0"
-                                    placeholderTextColor="#666"
+                                    placeholderTextColor="rgba(148,163,184,0.4)"
                                     keyboardType="numeric"
                                     value={amount}
                                     onChangeText={setAmount}
@@ -691,30 +742,60 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                                 />
                             </View>
 
-                            <TextInput
-                                style={styles.noteInput}
-                                placeholder="Description"
-                                placeholderTextColor="#666"
-                                value={note}
-                                onChangeText={setNote}
-                            />
+                            <View style={styles.noteInputWrap}>
+                                <MaterialCommunityIcons name="text" size={18} color={Colors.dark.textTertiary} style={styles.noteIcon} />
+                                <TextInput
+                                    style={styles.noteInput}
+                                    placeholder="Description"
+                                    placeholderTextColor="rgba(148,163,184,0.4)"
+                                    value={note}
+                                    onChangeText={setNote}
+                                />
+                            </View>
 
                             {/* Category Selector */}
+                            <Text style={styles.categoryLabel}>Category</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll} keyboardShouldPersistTaps="always">
                                 {categories.map(cat => (
                                     <TouchableOpacity
                                         key={cat.key}
-                                        style={[styles.categoryChip, selectedCategory === cat.key && { backgroundColor: cat.color, borderColor: cat.color }]}
+                                        style={[
+                                            styles.categoryChip,
+                                            selectedCategory === cat.key && styles.categoryChipSelected,
+                                            selectedCategory === cat.key && { backgroundColor: cat.color, borderColor: cat.color }
+                                        ]}
                                         onPress={() => setSelectedCategory(cat.key)}
                                     >
-                                        <MaterialCommunityIcons name={cat.icon} size={20} color="#fff" />
-                                        <Text style={styles.categoryChipText}>{cat.label}</Text>
+                                        <View style={[
+                                            styles.categoryChipIconWrap,
+                                            selectedCategory === cat.key
+                                                ? { backgroundColor: 'rgba(255,255,255,0.2)' }
+                                                : { backgroundColor: cat.color + '20' }
+                                        ]}>
+                                            <MaterialCommunityIcons
+                                                name={cat.icon}
+                                                size={18}
+                                                color={selectedCategory === cat.key ? '#fff' : cat.color}
+                                            />
+                                        </View>
+                                        <Text style={[
+                                            styles.categoryChipText,
+                                            selectedCategory === cat.key && styles.categoryChipTextSelected
+                                        ]}>{cat.label}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>
 
-                            <TouchableOpacity style={styles.saveButton} onPress={handleAddExpense}>
-                                <Text style={styles.saveButtonText}>Save Expense</Text>
+                            <TouchableOpacity onPress={handleAddExpense}>
+                                <LinearGradient
+                                    colors={['#38BDF8', '#0EA5E9']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.saveButton}
+                                >
+                                    <MaterialCommunityIcons name="check" size={22} color="#fff" />
+                                    <Text style={styles.saveButtonText}>Save Expense</Text>
+                                </LinearGradient>
                             </TouchableOpacity>
                         </ScrollView>
                     </View>
@@ -728,52 +809,41 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                 animationType="fade"
                 onRequestClose={() => setModalConfig(prev => ({ ...prev, visible: false }))}
             >
-                <BlurView intensity={20} tint="dark" style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                    <View style={{
-                        width: '80%',
-                        backgroundColor: '#1E293B',
-                        borderRadius: 24,
-                        padding: 24,
-                        borderWidth: 1,
-                        borderColor: 'rgba(255,255,255,0.1)',
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 10 },
-                        shadowOpacity: 0.5,
-                        shadowRadius: 20,
-                    }}>
-                        <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                <BlurView intensity={20} tint="dark" style={styles.confirmOverlay}>
+                    <View style={styles.confirmCard}>
+                        <View style={styles.confirmIconSection}>
                             {modalConfig.isDanger ? (
-                                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(239, 68, 68, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                <View style={styles.confirmIconDanger}>
                                     <MaterialCommunityIcons name="delete-outline" size={32} color="#EF4444" />
                                 </View>
                             ) : (
-                                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(59, 130, 246, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                <View style={styles.confirmIconInfo}>
                                     <MaterialCommunityIcons name="information-variant" size={32} color={Colors.dark.primary} />
                                 </View>
                             )}
-                            <Text style={{ fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 8, textAlign: 'center' }}>{modalConfig.title}</Text>
-                            <Text style={{ fontSize: 14, color: Colors.dark.textSecondary, textAlign: 'center' }}>
+                            <Text style={styles.confirmTitle}>{modalConfig.title}</Text>
+                            <Text style={styles.confirmMessage}>
                                 {modalConfig.message}
                             </Text>
                         </View>
 
-                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <View style={styles.confirmActions}>
                             {!modalConfig.singleButton && (
                                 <TouchableOpacity
-                                    style={{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center' }}
+                                    style={styles.confirmCancelBtn}
                                     onPress={() => setModalConfig(prev => ({ ...prev, visible: false }))}
                                 >
-                                    <Text style={{ color: '#fff', fontWeight: '600' }}>{modalConfig.cancelText || 'Cancel'}</Text>
+                                    <Text style={styles.confirmCancelText}>{modalConfig.cancelText || 'Cancel'}</Text>
                                 </TouchableOpacity>
                             )}
                             <TouchableOpacity
-                                style={{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: modalConfig.isDanger ? '#EF4444' : Colors.dark.primary, alignItems: 'center' }}
+                                style={[styles.confirmOkBtn, modalConfig.isDanger && styles.confirmOkBtnDanger]}
                                 onPress={() => {
                                     if (modalConfig.onConfirm) modalConfig.onConfirm();
                                     else setModalConfig(prev => ({ ...prev, visible: false }));
                                 }}
                             >
-                                <Text style={{ color: '#fff', fontWeight: '600' }}>{modalConfig.confirmText || 'OK'}</Text>
+                                <Text style={styles.confirmOkText}>{modalConfig.confirmText || 'OK'}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -793,106 +863,155 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingBottom: 20,
+        paddingBottom: 16,
         zIndex: 10,
     },
-    backButton: {
-        width: 40,
-        justifyContent: 'center',
-        // backgroundColor: 'red'
-    },
-    backText: {
-        display: 'none', // Icon only for cleaner look
+    headerSpacer: {
+        width: 88,
     },
     monthSelector: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        paddingVertical: 10,
+        paddingHorizontal: 18,
+        borderRadius: 24,
         gap: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     headerTitle: {
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '700',
         color: '#fff',
+        letterSpacing: 0.3,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    headerInsightBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(56,189,248,0.12)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(56,189,248,0.2)',
     },
     headerAdd: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: Colors.dark.primary,
+        overflow: 'hidden',
+    },
+    headerAddGradient: {
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
+    overviewWrapper: {
+        paddingHorizontal: 20,
+        marginBottom: 12,
+    },
+    overviewGradientBorder: {
+        borderRadius: 24,
+        padding: 1.5,
+    },
     overviewContainer: {
-        paddingHorizontal: 24,
+        backgroundColor: 'rgba(15,23,42,0.85)',
+        borderRadius: 23,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
+    },
+    overviewRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 10,
+        width: '100%',
     },
     monthLabel: {
-        fontSize: 14,
+        fontSize: 12,
         color: Colors.dark.textSecondary,
         marginBottom: 4,
         textTransform: 'uppercase',
-        letterSpacing: 1,
+        letterSpacing: 1.5,
+        fontWeight: '600',
     },
     monthValue: {
-        fontSize: 42,
+        fontSize: 38,
         fontWeight: '800',
         color: '#fff',
+        letterSpacing: -1,
     },
 
     // Calendar Strip
     calendarContainer: {
         height: 80,
     },
+    dateStripContent: {
+        paddingHorizontal: 20,
+    },
     dateItem: {
-        width: 60,
-        height: 70,
+        width: 56,
+        height: 72,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 16,
+        borderRadius: 18,
         backgroundColor: 'rgba(255,255,255,0.03)',
         marginRight: 10,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.05)',
+        overflow: 'hidden',
     },
-    dateItemSelected: {
-        backgroundColor: Colors.dark.primary,
-        borderColor: Colors.dark.primary,
-        transform: [{ scale: 1.05 }],
+    dateItemFuture: {
+        opacity: 0.3,
+    },
+    dateItemSelectedGradient: {
+        flex: 1,
+        width: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 17,
     },
     dayName: {
-        fontSize: 12,
-        color: Colors.dark.textSecondary,
+        fontSize: 11,
+        color: Colors.dark.textTertiary,
         marginBottom: 4,
         textTransform: 'uppercase',
+        fontWeight: '600',
+        letterSpacing: 0.5,
     },
     dayNameSelected: {
-        color: 'rgba(255,255,255,0.8)',
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.85)',
+        marginBottom: 4,
+        textTransform: 'uppercase',
+        fontWeight: '600',
+        letterSpacing: 0.5,
     },
     dayNumber: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#fff',
+        fontSize: 18,
+        fontWeight: '700',
+        color: Colors.dark.textSecondary,
     },
     dayNumberSelected: {
+        fontSize: 18,
+        fontWeight: '800',
         color: '#fff',
     },
     dot: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: Colors.dark.textSecondary,
-        marginTop: 6,
+        width: 5,
+        height: 5,
+        borderRadius: 2.5,
+        backgroundColor: Colors.dark.primary,
+        marginTop: 5,
     },
 
     // Scroll Content
-    scrollContent: {
-        // paddingHorizontal: 0,
-    },
+    scrollContent: {},
 
     // Day Details
     dayDetails: {
@@ -900,74 +1019,115 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.02)',
         borderTopLeftRadius: 32,
         borderTopRightRadius: 32,
-        paddingTop: 32,
+        paddingTop: 28,
         marginTop: 10,
     },
     dayHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 20,
     },
     dayHeaderTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
+        fontSize: 18,
+        fontWeight: '700',
         color: '#fff',
+        letterSpacing: 0.3,
     },
     dayHeaderTotal: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: Colors.dark.textSecondary,
+        fontSize: 18,
+        fontWeight: '700',
+        color: Colors.dark.primary,
+    },
+    expenseRowWrapper: {
+        marginBottom: 10,
     },
     expenseRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        borderRadius: 16,
+        padding: 14,
+        paddingLeft: 0,
+        backgroundColor: 'rgba(30,41,59,0.5)',
+        borderRadius: 18,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: 'rgba(255,255,255,0.06)',
+        overflow: 'hidden',
+    },
+    expenseAccent: {
+        width: 3,
+        height: '70%',
+        borderRadius: 2,
+        marginLeft: 2,
+        marginRight: 12,
     },
     catIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
+        width: 42,
+        height: 42,
+        borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
+        marginRight: 14,
+    },
+    expenseInfo: {
+        flex: 1,
     },
     expenseTitle: {
-        fontSize: 16,
-        fontWeight: '500',
+        fontSize: 15,
+        fontWeight: '600',
         color: '#fff',
+        marginBottom: 2,
     },
     expenseCat: {
         fontSize: 12,
-        color: Colors.dark.textSecondary,
+        color: Colors.dark.textTertiary,
+        fontWeight: '500',
+    },
+    expenseAmountWrap: {
+        alignItems: 'flex-end',
     },
     expenseAmount: {
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '700',
         color: '#fff',
     },
     emptyDayState: {
         alignItems: 'center',
-        paddingVertical: 40,
+        paddingVertical: 48,
+    },
+    emptyIconWrap: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: 'rgba(56,189,248,0.06)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(56,189,248,0.12)',
+    },
+    emptyDayTitle: {
+        color: '#fff',
+        fontSize: 17,
+        fontWeight: '700',
+        marginBottom: 4,
     },
     emptyDayText: {
-        color: Colors.dark.textSecondary,
-        marginVertical: 16,
-        fontSize: 16,
+        color: Colors.dark.textTertiary,
+        marginBottom: 20,
+        fontSize: 14,
     },
     addTodayButton: {
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 24,
+        gap: 6,
     },
     addTodayText: {
         color: '#fff',
-        fontWeight: '600',
+        fontWeight: '700',
+        fontSize: 14,
     },
 
     // Month Picker Modal
@@ -983,13 +1143,16 @@ const styles = StyleSheet.create({
         padding: 24,
         overflow: 'hidden',
         backgroundColor: 'rgba(30, 27, 75, 0.9)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     pickerTitle: {
         fontSize: 18,
-        fontWeight: 'bold',
+        fontWeight: '700',
         color: '#fff',
         marginBottom: 20,
         textAlign: 'center',
+        letterSpacing: 0.3,
     },
     pickerItem: {
         flexDirection: 'row',
@@ -1003,8 +1166,12 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: Colors.dark.text,
     },
+    pickerItemActive: {
+        color: Colors.dark.primary,
+        fontWeight: 'bold',
+    },
 
-    // Quick Add Modal (Same as before)
+    // Quick Add Modal
     modalOverlay: {
         flex: 1,
         justifyContent: 'flex-end',
@@ -1017,6 +1184,14 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
         borderTopWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
+        overflow: 'hidden',
+    },
+    modalGlow: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 120,
     },
     modalHeader: {
         flexDirection: 'row',
@@ -1025,75 +1200,130 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
+        fontSize: 22,
+        fontWeight: '800',
         color: '#fff',
+        letterSpacing: 0.3,
+    },
+    modalCloseBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     dateLabel: {
         color: Colors.dark.textSecondary,
-        marginBottom: 20,
+        marginBottom: 24,
         textAlign: 'center',
+        fontSize: 14,
+        fontWeight: '500',
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 24,
+        paddingVertical: 16,
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
     },
     currencySymbol: {
         fontSize: 32,
-        color: Colors.dark.textSecondary,
-        marginRight: 8,
+        color: Colors.dark.primary,
+        marginRight: 4,
+        fontWeight: '600',
     },
     amountInput: {
         fontSize: 48,
-        fontWeight: 'bold',
+        fontWeight: '800',
         color: '#fff',
         minWidth: 100,
     },
+    noteInputWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 16,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
+    },
+    noteIcon: {
+        marginLeft: 16,
+    },
     noteInput: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 12,
+        flex: 1,
         padding: 16,
         color: '#fff',
         fontSize: 16,
-        marginBottom: 24,
+    },
+    categoryLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: Colors.dark.textTertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 12,
     },
     categoryScroll: {
-        marginBottom: 32,
+        marginBottom: 28,
     },
     categoryChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
         borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-        marginRight: 12,
+        borderColor: 'rgba(255,255,255,0.08)',
+        marginRight: 10,
+        gap: 8,
+    },
+    categoryChipSelected: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    categoryChipIconWrap: {
+        width: 30,
+        height: 30,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     categoryChipText: {
-        color: '#fff',
-        marginLeft: 8,
+        color: Colors.dark.textSecondary,
         fontWeight: '600',
+        fontSize: 13,
+    },
+    categoryChipTextSelected: {
+        color: '#fff',
     },
     saveButton: {
-        backgroundColor: Colors.dark.primary,
-        borderRadius: 16,
-        padding: 18,
+        flexDirection: 'row',
+        borderRadius: 18,
+        paddingVertical: 16,
         alignItems: 'center',
+        justifyContent: 'center',
         marginBottom: 16,
+        gap: 8,
     },
     saveButtonText: {
         color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontSize: 17,
+        fontWeight: '800',
     },
     // Breakdown
     breakdownContainer: {
         marginTop: 16,
-        paddingBottom: 8,
+        paddingBottom: 4,
     },
     breakdownItem: {
         flexDirection: 'row',
@@ -1114,9 +1344,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#fff',
     },
-    sectionLabel: {
-        // ... existing
-    },
+    sectionLabel: {},
     // Filter Chips
     filterContainer: {
         marginBottom: 10,
@@ -1127,32 +1355,45 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     filterChip: {
-        paddingHorizontal: 14,
+        paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-        marginRight: 8,
+        borderColor: 'rgba(255,255,255,0.08)',
+        marginRight: 6,
+    },
+    filterChipActive: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginRight: 6,
     },
     filterText: {
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: '600',
-        color: Colors.dark.textSecondary,
+        color: Colors.dark.textTertiary,
+    },
+    filterTextActive: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#fff',
     },
     exportButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        backgroundColor: 'rgba(59, 130, 246, 0.15)', // Blue tint
-        borderRadius: 16,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        backgroundColor: 'rgba(56,189,248,0.1)',
+        borderRadius: 20,
         gap: 6,
+        borderWidth: 1,
+        borderColor: 'rgba(56,189,248,0.15)',
     },
     exportText: {
         color: Colors.dark.primary,
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: 13,
     },
     // Swipe Actions
     deleteAction: {
@@ -1160,13 +1401,161 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         width: 70,
-        borderRadius: 16,
+        borderRadius: 18,
         marginLeft: 8,
+    },
+    deleteActionInner: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
     },
     deleteActionText: {
         color: '#fff',
         fontWeight: '600',
         fontSize: 10,
         marginTop: 4,
+    },
+    contentArea: {
+        flex: 1,
+    },
+    // Insights Modal
+    insightsOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        padding: 16,
+    },
+    insightsCard: {
+        backgroundColor: '#1E293B',
+        borderRadius: 28,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(56,189,248,0.15)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.6,
+        shadowRadius: 24,
+        overflow: 'hidden',
+    },
+    insightsGlow: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 80,
+    },
+    insightsHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    insightsTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    insightsTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#fff',
+        letterSpacing: 0.3,
+    },
+    insightsCloseBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    // Confirm Modal
+    confirmOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    confirmCard: {
+        width: '80%',
+        backgroundColor: '#1E293B',
+        borderRadius: 28,
+        padding: 28,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.5,
+        shadowRadius: 24,
+    },
+    confirmIconSection: {
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    confirmIconDanger: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: 'rgba(239,68,68,0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(239,68,68,0.2)',
+    },
+    confirmIconInfo: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: 'rgba(56,189,248,0.12)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(56,189,248,0.2)',
+    },
+    confirmTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#fff',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    confirmMessage: {
+        fontSize: 14,
+        color: Colors.dark.textSecondary,
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    confirmActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    confirmCancelBtn: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
+    },
+    confirmCancelText: {
+        color: '#fff',
+        fontWeight: '600',
+    },
+    confirmOkBtn: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 16,
+        backgroundColor: Colors.dark.primary,
+        alignItems: 'center',
+    },
+    confirmOkBtnDanger: {
+        backgroundColor: '#EF4444',
+    },
+    confirmOkText: {
+        color: '#fff',
+        fontWeight: '700',
     },
 });
