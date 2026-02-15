@@ -20,6 +20,12 @@ A React Native / Expo application for personal life management. Built with Expo 
 - 2026-02-15: Fixed AddCardScreen blinking/shivering by removing re-triggering entrance animations, added LayoutAnimation for smooth category transitions
 - 2026-02-15: Fixed header scroll-through on Dashboard and Timeline (solid background on BlurView headers)
 - 2026-02-15: Fixed bottom tab bar overlap on Expenses and Timeline (increased scroll content paddingBottom to 140)
+- 2026-02-15: Fixed dashboard responsiveness by removing fixed pixel width from BentoCard, using 100% width with flex layout
+- 2026-02-15: Reordered categories: Finance, Housing, Utility first, then Academic, Work, Health, Fitness, General
+- 2026-02-15: Implemented finance/housing monthly-only payment logic (no daily/weekly frequency options)
+- 2026-02-15: Added expense budget limits feature with storage, progress bars, and set-budgets modal
+- 2026-02-15: Added quick action buttons (green checkmark, amber snooze) next to each task on Dashboard for web compatibility
+- 2026-02-15: Implemented full Dark/Light theme toggle with ThemeContext, light color scheme, Settings toggle, and updated all key screens
 
 ## Project Architecture
 - **Framework**: Expo SDK 52 with React Native
@@ -27,22 +33,24 @@ A React Native / Expo application for personal life management. Built with Expo 
 - **Language**: TypeScript
 - **Navigation**: React Navigation (bottom tabs + native stack)
 - **State**: AsyncStorage via StorageService
-- **Styling**: React Native StyleSheet with premium dark fintech theme (sky blue primary #38BDF8, midnight backgrounds, glass-morphism effects)
+- **Theming**: ThemeContext provides dark/light mode, persisted via AsyncStorage
+- **Styling**: React Native StyleSheet with premium fintech theme (sky blue primary #38BDF8, glass-morphism effects, supports dark & light modes)
 
 ### Directory Structure
 ```
 /
-├── App.tsx              # Root app with navigation setup
+├── App.tsx              # Root app with navigation setup + ThemeProvider
 ├── index.ts             # Entry point (registerRootComponent)
 ├── app.json             # Expo configuration
 ├── babel.config.js      # Babel config with reanimated plugin
 ├── tsconfig.json        # TypeScript config
 ├── src/
 │   ├── components/      # Reusable UI components (BentoCard, TaskRow, etc.)
-│   ├── constants/       # Colors, MockData
+│   ├── constants/       # Colors (dark + light themes), MockData
+│   ├── context/         # ThemeContext (dark/light mode provider)
 │   ├── screens/         # App screens (Dashboard, Expenses, Timeline, etc.)
-│   ├── services/        # NotificationService, StorageService
-│   ├── types.ts         # Type definitions
+│   ├── services/        # NotificationService, StorageService (includes budget storage)
+│   ├── types.ts         # Type definitions (LifeTask, ExpenseBudget, etc.)
 │   ├── types/           # Additional type definitions
 │   └── utils/           # Utility functions (dateUtils)
 └── assets/              # Images and icons
