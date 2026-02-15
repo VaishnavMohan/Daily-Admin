@@ -223,16 +223,24 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
         return days;
     }, [currentViewMonth]);
 
-    const selectedDateStr = selectedDate.toISOString().split('T')[0];
+    const formatLocalDate = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    const selectedDateStr = formatLocalDate(selectedDate);
 
     const filteredExpenses = useMemo(() => {
-        const now = new Date(); // Reference for 'current' ranges if needed, or use selectedDate/currentViewMonth
+        const now = new Date();
 
         return expenses.filter(e => {
-            const date = new Date(e.dueDate);
+            const [ey, em, ed] = e.dueDate.split('-').map(Number);
+            const date = new Date(ey, em - 1, ed);
 
             if (filterRange === 'day') {
-                return e.dueDate === selectedDate.toISOString().split('T')[0];
+                return e.dueDate === formatLocalDate(selectedDate);
             }
             if (filterRange === 'month') {
                 return date.getMonth() === currentViewMonth.getMonth() && date.getFullYear() === currentViewMonth.getFullYear();
