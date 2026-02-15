@@ -63,9 +63,9 @@ export default function TimelineScreen({ navigation }: any) {
 
         const timelineTasks = data.filter(task => {
             if (task.type === 'expense') return false;
-            return task.recurrence === 'monthly' ||
-                task.recurrence === 'yearly' ||
-                task.recurrence === 'once';
+            const type = task.type ? task.type.toLowerCase() : '';
+            if (type !== 'bill' && type !== 'checklist') return false;
+            return true;
         });
 
         // 1. Filter Logic - Only show current + next month
