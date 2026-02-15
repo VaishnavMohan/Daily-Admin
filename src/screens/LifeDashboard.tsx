@@ -13,7 +13,7 @@ import { LifeTask } from '../types';
 import { BentoCard } from '../components/BentoCard';
 import { TaskRow } from '../components/TaskRow';
 import { DailyProgress } from '../components/DailyProgress';
-import { Swipeable } from 'react-native-gesture-handler';
+import WebSwipeable from '../components/WebSwipeable';
 
 const { width } = Dimensions.get('window');
 
@@ -23,7 +23,7 @@ export default function LifeDashboard({ navigation }: any) {
     const [filterConstraint, setFilterConstraint] = useState<'all' | 'urgent'>('all');
 
     // Swipe & Modal State
-    const rowRefs = React.useRef(new Map<string, Swipeable>());
+    const rowRefs = React.useRef(new Map<string, any>());
     const [modalConfig, setModalConfig] = useState<{
         visible: boolean;
         title: string;
@@ -277,7 +277,7 @@ export default function LifeDashboard({ navigation }: any) {
                                 layout={LinearTransition.springify()}
                                 style={{ marginBottom: 12 }}
                             >
-                                <Swipeable
+                                <WebSwipeable
                                     ref={(ref) => {
                                         if (ref) rowRefs.current.set(task.id, ref);
                                     }}
@@ -321,7 +321,7 @@ export default function LifeDashboard({ navigation }: any) {
                                         onLongPress={() => handleDeleteTask(task)}
                                         style={{ marginBottom: 0 }}
                                     />
-                                </Swipeable>
+                                </WebSwipeable>
                             </Animated.View>
                         ))
                     ) : (

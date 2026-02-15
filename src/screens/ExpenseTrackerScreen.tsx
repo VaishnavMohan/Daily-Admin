@@ -12,7 +12,7 @@ import { LifeTask, TaskCategory } from '../types';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Alert } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import WebSwipeable from '../components/WebSwipeable';
 import { SpendingHeatmap } from '../components/SpendingHeatmap';
 
 const { width } = Dimensions.get('window');
@@ -63,7 +63,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
     }>({ visible: false, title: '', message: '' });
 
     // Swipe Exclusivity
-    const rowRefs = useRef(new Map<string, Swipeable>());
+    const rowRefs = useRef(new Map<string, any>());
 
     // Quick Add State
     const [amount, setAmount] = useState('');
@@ -582,7 +582,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                         {dayExpenses.length > 0 ? (
                             dayExpenses.map((expense, index) => (
                                 <View key={expense.id} style={{ marginBottom: 8 }}>
-                                    <Swipeable
+                                    <WebSwipeable
                                         ref={(ref) => {
                                             if (ref) {
                                                 rowRefs.current.set(expense.id, ref);
@@ -634,7 +634,7 @@ export const ExpenseTrackerScreen = ({ navigation }: any) => {
                                                 <Text style={styles.expenseAmount}>₹{expense.amount?.toLocaleString()}</Text>
                                             </View>
                                         </Animated.View>
-                                    </Swipeable>
+                                    </WebSwipeable>
                                 </View>
                             ))
                         ) : (
